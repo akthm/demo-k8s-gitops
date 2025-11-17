@@ -28,7 +28,7 @@ ingress:
 backend:
   enabled: true
   # The internal k8s Service name of your backend
-  serviceHost: "flask-app"
+  serviceHost: "flask-app.backend.cluster.internal"
   servicePort: 8000
   # Path prefix to proxy to backend (frontend -> backend)
   path: "/api"
