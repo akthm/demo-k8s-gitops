@@ -25,7 +25,7 @@ ingress:
   enabled: true
   className: "nginx"
   hosts:
-    - host: "api-staging.example.internal"
+    - host: "flask-app.backend.cluster.internal"
       paths:
         - path: /
           pathType: Prefix
