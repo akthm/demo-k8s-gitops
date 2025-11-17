@@ -18,7 +18,7 @@ db:
 
 config:
   DEBUG: "0"
-  CORS_ORIGINS: "http://localhost:5173,https://frontend-staging.example.internal"
+  CORS_ORIGINS: "flask-app.backend.cluster.internal"
   ENVIRONMENT: "staging"
 
 ingress:
