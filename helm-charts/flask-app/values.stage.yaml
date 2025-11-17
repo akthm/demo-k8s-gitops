@@ -1,0 +1,50 @@
+replicaCount: 1
+
+image:
+  tag: "stage-1"
+
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 5000
+
+externalSecrets:
+  enabled: true
+  databaseUrlKey: "staging/backend/database-url"
+  flaskKey: "staging/backend/flask-key"
+
+db:
+  auth:
+    database: "flask_staging"
+    username: "flask_user"
+
+config:
+  DEBUG: "0"
+  CORS_ORIGINS: "http://localhost:5173,https://frontend-staging.example.internal"
+  ENVIRONMENT: "staging"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: "api-staging.example.internal"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+
+hpa:
+  enabled: false

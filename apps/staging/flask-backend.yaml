@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: flask-backend
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/your-org/your-gitops-repo.git
+    targetRevision: staging
+    path: helm-charts/flask-app
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.stage.yaml
+      parameters:
+        - name: image.tag
+          value: "stage-1"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: backend
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      # Optional:
+      # - PruneLast=true

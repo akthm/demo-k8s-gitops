@@ -1,0 +1,205 @@
+# Default replica count (can be overridden by HPA)
+replicaCount: 1
+
+# Optional name overrides used by templates/helpers
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: akthm/demo-back  # Change this
+  pullPolicy: IfNotPresent
+  tag: "1.0.14" # ArgoCD will override this with your git commit SHA
+
+service:
+  type: ClusterIP
+  port: 8000 # The port the Service exposes
+  targetPort: 5000 # The port your Flask app's container (Gunicorn) listens on
+
+# Liveness and Readiness probes are ESSENTIAL for Blue/Green
+probes:
+  path: "/health" # Your app must respond 200 OK at this path
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+# Per-container liveness/readiness objects expected by templates. These are
+# populated from the simpler `probes` fields above for convenience. You can
+# replace these with any valid kubernetes probe objects.
+livenessProbe:
+  httpGet:
+    path: "/health"
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+readinessProbe:
+  httpGet:
+    path: "/health"
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+# Horizontal Pod Autoscaler (HPA) settings
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 70
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Optional runtime values referenced by templates. These are safe defaults
+# (mostly empty) that you can customize per-deployment.
+serviceAccount:
+  create: true
+  name: flask-app
+
+podAnnotations:
+  prometheus.io/scrape: "false"
+
+podLabels:
+  app: flask-backend
+  version: "1"
+
+imagePullSecrets: []
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  fsGroupChangePolicy: "OnRootMismatch"
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+volumeMounts: []
+volumes: []
+
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+# HTTPRoute (Gateway API) and legacy ingress fallbacks used by templates/NOTES
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs: []
+  hostnames: []
+  rules: []
+
+ingress:
+  enabled: false
+  hosts: []
+  tls: []
+
+
+db:
+  auth:
+    rootPassword: secretrootpassword
+    database: flask_db
+    username: flask_user
+    password: userpassword
+  
+  primary:
+    persistence:
+      enabled: true
+      storageClass: "standard"
+      size: 1Gi
+  image:
+    registry: docker.io
+    repository: mysql
+    tag: "8.0.35"  
+
+  architecture: standalone   # Use standalone for dev/test, replication for prod
+
+  fullnameOverride: "flask-app-db"
+  
+  # Optional: Configure MySQL settings
+  configuration: |-
+    [mysqld]
+    default_authentication_plugin=mysql_native_password
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+
+  
+  # --- NEW SECTION: Non-sensitive configuration ---
+# These values will be loaded into a ConfigMap
+config:
+  DEBUG: "0"
+  DOCKERIZED: "true"
+  GUNICORN_WORKERS: "2"
+  BACKEND_PORT: "5000" # This is the port your Flask app (Gunicorn) listens on internally
+  CORS_ORIGINS: "http://localhost:5173,https://frontend-staging.example.internal"
+  SQLALCHEMY_TRACK_MODIFICATIONS: "False"
+  JWT_ACCESS_TTL: "900"
+  JWT_REFRESH_TTL: "2592000"
+  JWT_COOKIE_NAME: "rt"
+  JWT_CSRF_COOKIE: "csrf_refresh_root"
+  JWT_COOKIE_SECURE: "false"
+  JWT_COOKIE_SAMESITE: "Lax"
+  JWT_COOKIE_DOMAIN: ""
+  JWT_LEEWAY: "30"
+  API_TEST_MODE: "false"
+  DB_FALLBACK_TO_SQLITE_IN_MEMORY: "false"
+
+externalSecrets:
+  enabled: true
+  secretStoreRef:
+    name: "aws-secrets-manager"
+    kind: "ClusterSecretStore"
+  databaseUrlKey: "staging/backend/database-url"
+  flaskKey: "staging/backend/flask-key"
+
+jwt:
+  enabled: true
+
+  # The algorithm your code expects (validate_jwt_keys uses this)
+  algorithm: RS256
+
+  issuer: "my-backend"
+  audience: "my-frontend"
+
+  # Use the pre-created secret
+  existingSecret: "backend-jwt-keys"
+
+  # Keys inside that secret
+  privateKeyKey: "JWT_PRIVATE_KEY"
+  publicKeyKey: "JWT_PUBLIC_KEY"
+
+  # IMPORTANT: leave this false in real envs; keys come from existingSecret
+  createSecret: false
+# --- NEW SECTION: Sensitive configuration ---
+# These values will be loaded into a Secret
+# DO NOT put default passwords here. Set them during deployment.
+secrets:
+  DATABASE_ENCRYPTION_KEY: "RrI-kQ5W5A4fk3YJu4siDXCTsGhW7cvPbq859VHYFKc=" # Replace before production
+  SECRET_KEY: "change-me-in-production"
+  INITIAL_ADMIN_USER: "{user : 'admin', password: 'admin'}"
+  # The SQLALCHEMY_DATABASE_URI should not contain Helm templates. Build the
+  # connection string from env vars (DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME)
+  DB_TYPE: "mysql"
+  DB_USER: "flask_user"
+  DB_PASSWORD: "userpassword"
+  DB_HOST: "flask-app-db"
+  DB_PORT: "3306"
+  DB_NAME: "flask_db"
+  API_TEST_KEY: ""

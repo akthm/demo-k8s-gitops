@@ -1,0 +1,27 @@
+replicaCount: 3
+
+image:
+  tag: "stable-1"
+
+externalSecrets:
+  enabled: true
+  databaseUrlKey: "prod/backend/database-url"
+  flaskKey: "prod/backend/flask-key"
+
+db:
+  auth:
+    database: "flask_prod"
+    username: "flask_user"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: "api.example.com"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: "fill-later-tls-secret"
+      hosts:
+        - "api.example.com"

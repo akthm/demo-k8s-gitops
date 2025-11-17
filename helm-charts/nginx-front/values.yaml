@@ -1,0 +1,65 @@
+replicaCount: 1
+
+image:
+  repository: akthm/demo-front
+  tag: "1.0.3"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  hosts:
+    - host: frontend.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # tls:
+  #   - secretName: frontend-tls
+  #     hosts:
+  #       - frontend.local
+
+backend:
+  enabled: true
+  # The internal k8s Service name of your backend
+  serviceHost: "flask-app"
+  servicePort: 8000
+  # Path prefix to proxy to backend (frontend -> backend)
+  path: "/api"
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 70
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}
+
+securityContext:
+  enabled: true
+  runAsUser: 101
+  runAsGroup: 101
+  runAsNonRoot: true
+  fsGroup: 101
+  fsGroupChangePolicy: "OnRootMismatch"
+
+podSecurityContext: {}

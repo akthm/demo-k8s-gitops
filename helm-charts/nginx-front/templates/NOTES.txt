@@ -1,0 +1,35 @@
+NOTES:
+
+1. The nginx-front release has been installed.
+
+2. To see the Service:
+
+   kubectl get svc {{ include "nginx-front.fullname" . }} -n {{ .Release.Namespace }}
+
+{{- if .Values.ingress.enabled }}
+
+3. Ingress is enabled. Access via:
+
+{{- range .Values.ingress.hosts }}
+   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{ (index .paths 0).path }}
+{{- end }}
+
+   Verify:
+
+   kubectl get ingress {{ include "nginx-front.fullname" . }} -n {{ .Release.Namespace }}
+
+{{- else }}
+
+3. Ingress is disabled. To port-forward locally:
+
+   kubectl port-forward svc/{{ include "nginx-front.fullname" . }} -n {{ .Release.Namespace }} 8080:{{ .Values.service.port }}
+
+   Then open:
+
+   http://localhost:8080/
+
+{{- end }}
+
+4. To inspect rendered manifests:
+
+   helm template {{ .Release.Name }} . --namespace {{ .Release.Namespace }}

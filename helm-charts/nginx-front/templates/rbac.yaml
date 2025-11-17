@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "nginx-front.fullname" . }}
+  labels:
+    {{- include "nginx-front.labels" . | nindent 4 }}
+rules:
+  # Allow reading configmaps for nginx configuration
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "nginx-front.fullname" . }}
+  labels:
+    {{- include "nginx-front.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "nginx-front.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "nginx-front.fullname" . }}
+    namespace: {{ .Release.Namespace }}
