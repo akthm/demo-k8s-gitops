@@ -126,8 +126,8 @@ db:
       size: 1Gi
   image:
     registry: docker.io
-    repository: mysql
-    tag: "8.0.35"  
+    repository: bitnamilegacy/mysql
+    tag: "9.4.0-debian-12-r1" 
 
   architecture: standalone   # Use standalone for dev/test, replication for prod
 
