@@ -8,12 +8,11 @@ spec:
 
   source:
     repoURL: https://github.com/akthm/demo-k8s-gitops
-    targetRevision: staging
+    targetRevision: main
     path: helm-charts/nginx-front
     helm:
       valueFiles:
         - values.yaml
-        - values.stage.yaml
       parameters:
         - name: image.tag
           value: "1.0.3"
