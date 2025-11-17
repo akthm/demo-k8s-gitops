@@ -65,7 +65,7 @@ podAnnotations:
   prometheus.io/scrape: "false"
 
 podLabels:
-  app: flask-backend
+  app: flask-app
   version: "1"
 
 imagePullSecrets: []
