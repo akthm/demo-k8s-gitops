@@ -162,7 +162,7 @@ config:
   DB_FALLBACK_TO_SQLITE_IN_MEMORY: "false"
 
 externalSecrets:
-  enabled: true
+  enabled: false
   secretStoreRef:
     name: "aws-secrets-manager"
     kind: "ClusterSecretStore"
