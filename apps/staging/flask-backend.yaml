@@ -16,7 +16,7 @@ spec:
         - values.stage.yaml
       parameters:
         - name: image.tag
-          value: "stage-1"
+          value: "1.0.14"
 
   destination:
     server: https://kubernetes.default.svc
