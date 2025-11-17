@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  tag: "stage-1"
+  tag: "stage-1" # should be replaced
 
 service:
   type: ClusterIP
