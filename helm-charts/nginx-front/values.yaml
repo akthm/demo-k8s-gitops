@@ -15,7 +15,7 @@ ingress:
   className: ""
   annotations: {}
   hosts:
-    - host: frontend.local
+    - host: nginx-frontend-nginx-front.fontend.cluster.internal
       paths:
         - path: /
           pathType: Prefix
