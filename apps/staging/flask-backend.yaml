@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: flask-backend
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0" # DEPLOY FIRST
 spec:
   project: default
 
