@@ -7,7 +7,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/your-org/your-gitops-repo.git
+    repoURL: https://github.com/akthm/demo-k8s-gitops
     targetRevision: staging
     path: helm-charts/flask-app
     helm:
