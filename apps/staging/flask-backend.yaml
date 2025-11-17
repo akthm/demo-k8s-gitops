@@ -8,7 +8,7 @@ spec:
 
   source:
     repoURL: https://github.com/akthm/demo-k8s-gitops
-    targetRevision: staging
+    targetRevision: main
     path: helm-charts/flask-app
     helm:
       valueFiles:
