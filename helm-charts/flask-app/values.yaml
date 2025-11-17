@@ -159,7 +159,7 @@ config:
   JWT_COOKIE_DOMAIN: ""
   JWT_LEEWAY: "30"
   API_TEST_MODE: "false"
-  DB_FALLBACK_TO_SQLITE_IN_MEMORY: "false"
+  DB_FALLBACK_TO_SQLITE_IN_MEMORY: "true"
 
 externalSecrets:
   enabled: false
