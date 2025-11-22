@@ -61,18 +61,16 @@ spec:
               value: {{ .Values.jwt.issuer | quote }}
             - name: JWT_AUDIENCE
               value: {{ .Values.jwt.audience | quote }}
-
-            # - name: JWT_PRIVATE_KEY
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: {{ .Values.jwt.existingSecret }}
-            #       key: {{ .Values.jwt.privateKeyKey }}
-
-            # - name: JWT_PUBLIC_KEY
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: {{ .Values.jwt.existingSecret }}
-            #       key: {{ .Values.jwt.publicKeyKey }}
+            - name: JWT_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.jwt.existingSecret }}
+                  key: {{ .Values.jwt.privateKeyKey }}
+            - name: JWT_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.jwt.existingSecret }}
+                  key: {{ .Values.jwt.publicKeyKey }}
               {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
