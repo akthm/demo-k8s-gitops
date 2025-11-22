@@ -122,7 +122,6 @@ db:
   primary:
     persistence:
       enabled: true
-      storageClass: "standard"
       size: 1Gi
   image:
     registry: docker.io
