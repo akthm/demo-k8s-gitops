@@ -50,23 +50,10 @@ spec:
             - secretRef:
                 name: flask-app-db-credentials      # From external-secret-database.yam
             - secretRef:
-                name: flask-app-secrets             # From external-secret-flask.yaml
+                name: flask-app-secret             # From external-secret-flask.yaml
             - secretRef:
                 name: flask-app-admin-credentials   # From external-secret-admin.yaml
           env:
-            - name: DB_HOST
-              value: {{ printf "%s-%s" .Release.Name "db" | quote }}
-            - name: DB_PORT
-              value: "3306"
-            - name: DB_NAME
-              value: {{ .Values.db.auth.database | quote }}
-            - name: DB_USER
-              value: {{ .Values.db.auth.username | quote }}
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ printf "%s-%s" .Release.Name "db" }}
-                  key: mysql-password
               {{- if .Values.jwt.enabled }}
             - name: JWT_ALGORITHM
               value: {{ .Values.jwt.algorithm | quote }}
