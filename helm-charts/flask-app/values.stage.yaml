@@ -17,7 +17,12 @@ db:
     username: "flask_user"
 
   primary:
-    storageClass: "gp3"
+    persistence:
+      enabled: true
+      size: 5Gi  # Larger for staging
+      storageClass: "gp3"
+      accessModes:
+        - ReadWriteOnce
 
 config:
   DEBUG: "0"
