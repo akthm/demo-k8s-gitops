@@ -114,10 +114,9 @@ ingress:
 
 db:
   auth:
-    # rootPassword: secretrootpassword
+    existingSecret: "flask-app-db"  # Use the secret created by External Secrets
     database: flask_db
     username: flask_user
-    # password: userpassword
   
   primary:
     persistence:
