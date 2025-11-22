@@ -36,6 +36,8 @@ config:
   DEBUG: "0"
   CORS_ORIGINS: "flask-app.backend.cluster.internal"
   ENVIRONMENT: "staging"
+  ENSURE_INITIAL_DATA: true
+  DB_FALLBACK_TO_SQLITE_IN_MEMORY: false
 
 ingress:
   enabled: true
