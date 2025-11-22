@@ -123,6 +123,7 @@ db:
     persistence:
       enabled: true
       size: 1Gi
+      storageClass: ""  # Use cluster default (ebs-csi-gp3)
   image:
     registry: docker.io
     repository: bitnamilegacy/mysql

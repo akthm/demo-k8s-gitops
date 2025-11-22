@@ -20,7 +20,7 @@ db:
     persistence:
       enabled: true
       size: 5Gi  # Larger for staging
-      storageClass: "gp3"
+      storageClass: "ebs-csi-gp3"
       accessModes:
         - ReadWriteOnce
 
