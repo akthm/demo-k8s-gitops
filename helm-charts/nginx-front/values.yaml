@@ -12,10 +12,12 @@ service:
 
 ingress:
   enabled: true
-  className: ""
-  annotations: {}
+  className: "nginx"
+  annotations: {
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  }
   hosts:
-    - host: nginx-frontend-nginx-front.fontend.cluster.internal
+    - host: ""
       paths:
         - path: /
           pathType: Prefix
