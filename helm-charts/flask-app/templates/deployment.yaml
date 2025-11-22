@@ -48,7 +48,11 @@ spec:
             - configMapRef:
                 name: {{ include "flask-app.fullname" . }}-config
             - secretRef:
-                name: {{ include "flask-app.fullname" . }}-secret
+                name: flask-app-db-credentials      # From external-secret-database.yam
+            - secretRef:
+                name: flask-app-secrets             # From external-secret-flask.yaml
+            - secretRef:
+                name: flask-app-admin-credentials   # From external-secret-admin.yaml
           env:
             - name: DB_HOST
               value: {{ printf "%s-%s" .Release.Name "db" | quote }}

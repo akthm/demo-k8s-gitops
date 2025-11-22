@@ -114,10 +114,10 @@ ingress:
 
 db:
   auth:
-    rootPassword: secretrootpassword
+    # rootPassword: secretrootpassword
     database: flask_db
     username: flask_user
-    password: userpassword
+    # password: userpassword
   
   primary:
     persistence:
@@ -192,13 +192,13 @@ jwt:
 # DO NOT put default passwords here. Set them during deployment.
 secrets:
   DATABASE_ENCRYPTION_KEY: "RrI-kQ5W5A4fk3YJu4siDXCTsGhW7cvPbq859VHYFKc=" # Replace before production
-  SECRET_KEY: "change-me-in-production"
-  INITIAL_ADMIN_USER: "{user : 'admin', password: 'admin'}"
+  # SECRET_KEY: "change-me-in-production"
+  # INITIAL_ADMIN_USER: "{user : 'admin', password: 'admin'}"
   # The SQLALCHEMY_DATABASE_URI should not contain Helm templates. Build the
   # connection string from env vars (DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME)
   DB_TYPE: "mysql"
   DB_USER: "flask_user"
-  DB_PASSWORD: "userpassword"
+  # DB_PASSWORD: "userpassword"
   DB_HOST: "flask-app-db"
   DB_PORT: "3306"
   DB_NAME: "flask_db"
