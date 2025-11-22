@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  tag: "1.0.17" # should be replaced
+  tag: "1.0.16" # should be replaced
 
 service:
   type: ClusterIP
