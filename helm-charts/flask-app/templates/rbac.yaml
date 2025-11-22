@@ -10,12 +10,15 @@ rules:
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list"]
-  # Allow reading secrets (only those created by this release)
+  # Allow reading secrets (ExternalSecrets pattern + JWT keys)
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get"]
+    verbs: ["get", "list"]
     resourceNames:
       - {{ include "flask-app.fullname" . }}-secret
+      - {{ include "flask-app.fullname" . }}-db-credentials
+      - {{ include "flask-app.fullname" . }}-admin-credentials
+      - {{ include "flask-app.fullname" . }}-jwt-keys
       - {{ .Values.jwt.existingSecret }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

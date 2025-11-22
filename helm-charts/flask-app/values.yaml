@@ -166,8 +166,11 @@ externalSecrets:
   secretStoreRef:
     name: "aws-secrets-manager"
     kind: "ClusterSecretStore"
-  databaseUrlKey: "staging/backend/database-url"
-  flaskKey: "staging/backend/flask-key"
+  # AWS Secrets Manager keys for each secret type
+  databaseKey: "staging/backend/database"
+  flaskAppKey: "staging/backend/flask-app"
+  adminKey: "staging/backend/admin"
+  jwtKeysKey: "staging/backend/jwt-keys"
 
 jwt:
   enabled: true
@@ -178,8 +181,8 @@ jwt:
   issuer: "my-backend"
   audience: "my-frontend"
 
-  # Use the pre-created secret
-  existingSecret: "backend-jwt-keys"
+  # Use ExternalSecret-created JWT keys secret (replaces manual backend-jwt-keys)
+  existingSecret: "flask-app-jwt-keys"
 
   # Keys inside that secret
   privateKeyKey: "JWT_PRIVATE_KEY"

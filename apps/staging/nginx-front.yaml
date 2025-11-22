@@ -18,7 +18,6 @@ spec:
       parameters:
         - name: image.tag
           value: "1.0.3"
-      parameters:
         - name: backend.serviceHost
           value: "flask-app.backend.svc.cluster.local"
 

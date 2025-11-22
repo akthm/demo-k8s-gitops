@@ -10,6 +10,14 @@ service:
 
 externalSecrets:
   enabled: true
+  secretStoreRef:
+    name: "aws-secrets-manager"
+    kind: "ClusterSecretStore"
+  # Staging AWS Secrets Manager keys
+  databaseKey: "staging/backend/database"
+  flaskAppKey: "staging/backend/flask-app"
+  adminKey: "staging/backend/admin"
+  jwtKeysKey: "staging/backend/jwt-keys"
 
 db:
   auth:
