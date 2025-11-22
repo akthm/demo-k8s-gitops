@@ -16,6 +16,9 @@ db:
     database: "flask_staging"
     username: "flask_user"
 
+  primary:
+    storageClass: "gp3"
+
 config:
   DEBUG: "0"
   CORS_ORIGINS: "flask-app.backend.cluster.internal"
