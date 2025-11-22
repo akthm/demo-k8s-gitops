@@ -21,8 +21,6 @@ spec:
       parameters:
         - name: backend.serviceHost
           value: "flask-app.backend.svc.cluster.local"
-        - name: ingress.hosts[0].host
-          value: "frontend-staging.example.internal"
 
   destination:
     server: https://kubernetes.default.svc

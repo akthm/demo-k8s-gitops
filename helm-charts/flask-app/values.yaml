@@ -191,7 +191,7 @@ jwt:
 # These values will be loaded into a Secret
 # DO NOT put default passwords here. Set them during deployment.
 secrets:
-  DATABASE_ENCRYPTION_KEY: "RrI-kQ5W5A4fk3YJu4siDXCTsGhW7cvPbq859VHYFKc=" # Replace before production
+  # Replace before production
   # SECRET_KEY: "change-me-in-production"
   # INITIAL_ADMIN_USER: "{user : 'admin', password: 'admin'}"
   # The SQLALCHEMY_DATABASE_URI should not contain Helm templates. Build the
