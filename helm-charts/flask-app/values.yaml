@@ -133,6 +133,30 @@ db:
 
   fullnameOverride: "flask-app-db"
   
+  # Increase probe timeouts to prevent premature restarts
+  primary:
+    startupProbe:
+      enabled: true
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 15
+      successThreshold: 1
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+      successThreshold: 1
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+      successThreshold: 1
+  
   # Optional: Configure MySQL settings
   configuration: |-
     [mysqld]
