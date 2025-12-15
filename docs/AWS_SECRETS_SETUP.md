@@ -92,7 +92,8 @@ aws secretsmanager create-secret \
   --name staging/backend/admin \
   --description "Initial admin user credentials (staging)" \
   --secret-string '{
-    "INITIAL_ADMIN_USER": "{\"username\": \"admin\", \"password\": \"CHANGE_ME_ADMIN_PASSWORD\", \"email\": \"admin@example.com\"}"
+    \"INITIAL_ADMIN_USERNAME\": " \"admin\", \
+    \"INITIAL_ADMIN_USERNAME\": \"pass123\"}"
   }' \
   --region ap-south-1
 ```
