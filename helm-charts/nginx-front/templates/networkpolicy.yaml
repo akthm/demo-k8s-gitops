@@ -45,7 +45,7 @@ spec:
               app.kubernetes.io/name: flask-app
       ports:
         - protocol: TCP
-          port: 8000
+          port: 5000
     # Allow external HTTPS
     - to:
         - namespaceSelector: {}

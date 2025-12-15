@@ -12,7 +12,7 @@ image:
 
 service:
   type: ClusterIP
-  port: 8000 # The port the Service exposes
+  port: 5000 # The port the Service exposes
   targetPort: 5000 # The port your Flask app's container (Gunicorn) listens on
 
 # Liveness and Readiness probes are ESSENTIAL for Blue/Green
