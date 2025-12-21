@@ -53,11 +53,11 @@ spec:
             - configMapRef:
                 name: {{ include "flask-app.fullname" . }}-config
             - secretRef:
-                name: flask-app-db-credentials      # From external-secret-database.yam
+                name: {{ .Values.secretNames.databaseCredentials }}
             - secretRef:
-                name: flask-app-secret             # From external-secret-flask.yaml
+                name: {{ .Values.secretNames.flaskSecret }}
             - secretRef:
-                name: flask-app-admin-credentials   # From external-secret-admin.yaml
+                name: {{ .Values.secretNames.adminCredentials }}
           env:
               {{- if .Values.jwt.enabled }}
             - name: JWT_ALGORITHM

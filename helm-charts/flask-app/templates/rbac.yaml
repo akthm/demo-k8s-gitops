@@ -16,10 +16,10 @@ rules:
     resources: ["secrets"]
     verbs: ["get", "list"]
     resourceNames:
-      - flask-app-db
-      - flask-app-db-credentials
-      - flask-app-secret
-      - flask-app-admin-credentials
+      - {{ .Values.secretNames.database }}
+      - {{ .Values.secretNames.databaseCredentials }}
+      - {{ .Values.secretNames.flaskSecret }}
+      - {{ .Values.secretNames.adminCredentials }}
       - {{ .Values.jwt.existingSecret }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

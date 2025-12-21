@@ -5,6 +5,13 @@ replicaCount: 1
 nameOverride: ""
 fullnameOverride: ""
 
+# Secret names - centralized for easy override
+secretNames:
+  database: "flask-app-db"  # MySQL root/user password secret
+  databaseCredentials: "flask-app-db-credentials"  # External Secrets - DB connection details
+  flaskSecret: "flask-app-secret"  # External Secrets - Flask SECRET_KEY, etc
+  adminCredentials: "flask-app-admin-credentials"  # External Secrets - Initial admin user
+
 image:
   repository: akthm/demo-back  # Change this
   pullPolicy: IfNotPresent
@@ -114,7 +121,7 @@ ingress:
 
 db:
   auth:
-    existingSecret: "flask-app-db"  # Use the secret created by External Secrets
+    existingSecret: "flask-app-db"  # Use the secret created by External Secrets (matches secretNames.database)
     database: flask_db
     username: flask_user
   
@@ -186,6 +193,10 @@ config:
   JWT_LEEWAY: "30"
   API_TEST_MODE: "false"
   DB_FALLBACK_TO_SQLITE_IN_MEMORY: "true"
+  # Database connection is built from secrets, but these provide fallback/defaults
+  DB_TYPE: "mysql"
+  DB_HOST: "flask-app-db"
+  DB_PORT: "3306"
 
 externalSecrets:
   enabled: false
@@ -193,6 +204,12 @@ externalSecrets:
     name: "aws-secrets-manager"
     kind: "ClusterSecretStore"
   # AWS Secrets Manager keys for each secret type
+  # These should contain the actual secrets in your AWS account
+  # Structure:
+  #   databaseKey: Contains DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
+  #   flaskAppKey: Contains SECRET_KEY and other Flask secrets
+  #   adminKey: Contains INITIAL_ADMIN_USER (JSON with username/password/email)
+  #   jwtKeysKey: Contains JWT_PRIVATE_KEY and JWT_PUBLIC_KEY (RSA keys)
   databaseKey: "staging/backend/database"
   flaskAppKey: "staging/backend/flask-app"
   adminKey: "staging/backend/admin"
@@ -235,10 +252,6 @@ secrets:
   # INITIAL_ADMIN_USER: "{user : 'admin', password: 'admin'}"
   # The SQLALCHEMY_DATABASE_URI should not contain Helm templates. Build the
   # connection string from env vars (DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME)
-  DB_TYPE: "mysql"
-  DB_USER: "flask_user"
-  # DB_PASSWORD: "userpassword"
-  DB_HOST: "flask-app-db"
-  DB_PORT: "3306"
-  DB_NAME: "flask_db"
+  # DB credentials are provided by ExternalSecrets
+  # Additional secrets can be added here
   API_TEST_KEY: ""

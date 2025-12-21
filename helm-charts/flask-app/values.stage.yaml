@@ -37,8 +37,6 @@ config:
   DB_TYPE: "mysql"
   DB_HOST: "flask-app-db.backend.svc.cluster.local"
   DB_PORT: "3306"
-  DB_NAME: "flask_staging"
-  DB_USER: "flask_user"
 ingress:
   enabled: true
   className: "nginx"

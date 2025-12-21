@@ -34,6 +34,8 @@ backend:
   servicePort: 5000
   # Path prefix to proxy to backend (frontend -> backend)
   path: "/api"
+  # Namespace where backend is deployed (for NetworkPolicy)
+  namespace: "backend"
 
 resources:
   requests:

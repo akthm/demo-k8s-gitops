@@ -39,7 +39,7 @@ spec:
     - to:
         - namespaceSelector:
             matchLabels:
-              name: backend
+              name: {{ .Values.backend.namespace }}
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: flask-app
