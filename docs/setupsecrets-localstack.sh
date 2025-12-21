@@ -215,21 +215,16 @@ create_admin_secret() {
     
     delete_secret_if_exists "${secret_name}"
     
-    local admin_user_json=$(jq -n \
+    local secret_value=$(jq -n \
         --arg username "$ADMIN_USERNAME" \
         --arg password "$ADMIN_PASSWORD" \
         --arg email "$ADMIN_EMAIL" \
         '{
-            username: $username,
-            password: $password,
-            email: $email
+            INITIAL_ADMIN_USERNAME: $username,
+            INITIAL_ADMIN_PASSWORD: $password,
+            INITIAL_ADMIN_EMAIL: $email
         }' | jq -c .)
     
-    local secret_value=$(jq -n \
-        --arg admin "$admin_user_json" \
-        '{
-            INITIAL_ADMIN_USER: $admin
-        }')
     
     aws_local secretsmanager create-secret \
         --name "${secret_name}" \

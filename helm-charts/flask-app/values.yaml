@@ -198,6 +198,16 @@ externalSecrets:
   adminKey: "staging/backend/admin"
   jwtKeysKey: "staging/backend/jwt-keys"
 
+gitops:
+  argo:
+    preSyncSecretCheck:
+      enabled: true
+      # Runs as an Argo CD PreSync hook. It waits a bounded time for ESO to materialize
+      # the required K8s Secrets and fails the sync if they never appear.
+      timeoutSeconds: 60
+      # Negative means it runs early (but will wait until secrets exist).
+      syncWave: "-5"
+
 jwt:
   enabled: true
 

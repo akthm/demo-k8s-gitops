@@ -10,15 +10,16 @@ rules:
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list"]
-  # Allow reading secrets (ExternalSecrets pattern + JWT keys)
+  # Allow reading only the secrets this chart expects (used by the app pod and the
+  # Argo CD PreSync fast-fail hook job).
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list"]
     resourceNames:
-      - {{ include "flask-app.fullname" . }}-secret
-      - {{ include "flask-app.fullname" . }}-db-credentials
-      - {{ include "flask-app.fullname" . }}-admin-credentials
-      - {{ include "flask-app.fullname" . }}-jwt-keys
+      - flask-app-db
+      - flask-app-db-credentials
+      - flask-app-secret
+      - flask-app-admin-credentials
       - {{ .Values.jwt.existingSecret }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
