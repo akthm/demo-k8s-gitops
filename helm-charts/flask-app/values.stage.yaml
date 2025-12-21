@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  tag: "1.0.44" # should be replaced
+  tag: "1.0.45" # should be replaced
   repository: akthm/demo-back
   pullPolicy: IfNotPresent
 service:
