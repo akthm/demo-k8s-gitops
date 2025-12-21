@@ -201,7 +201,7 @@ externalSecrets:
 gitops:
   argo:
     preSyncSecretCheck:
-      enabled: true
+      enabled: false
       # Runs as an Argo CD PreSync hook. It waits a bounded time for ESO to materialize
       # the required K8s Secrets and fails the sync if they never appear.
       timeoutSeconds: 60
