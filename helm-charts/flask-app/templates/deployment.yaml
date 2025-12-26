@@ -118,12 +118,10 @@ spec:
           - secret:
               name: {{ .Values.secretNames.databaseCredentials }}
               items:
-              - key: db_encryption_v1.key
-                path: v1.key
-              - key: db_encryption_v2.key
-                path: v2.key
-              - key: db_encryption_v3.key
-                path: v3.key
+              {{- range .Values.rotation.database.keyVersions }}
+              - key: db_encryption_{{ . }}.key
+                path: {{ . }}.key
+              {{- end }}
               - key: db_encryption_current.version
                 path: current.version
       {{- with .Values.nodeSelector }}

@@ -272,6 +272,7 @@ rotation:
     gracePeriodDays: 30  # Old keys can decrypt for 30 days
     retention: 2  # Keep 2 versions during migration
     batchSize: 100  # Records per batch during re-encryption
+    keyVersions: ["v1"]  # List of key versions to sync from AWS (dynamically updated by rotation)
     serviceAccount:
       create: true
       name: "flask-app-db-key-rotator"
