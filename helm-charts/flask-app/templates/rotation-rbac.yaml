@@ -1,0 +1,170 @@
+{{- if .Values.rotation.jwt.enabled }}
+{{- if .Values.rotation.jwt.serviceAccount.create }}
+---
+# ==============================================================================
+# ServiceAccount for JWT Key Rotation
+# ==============================================================================
+# This ServiceAccount is used by the JWT rotation CronJob to access AWS Secrets Manager.
+# Requires IRSA (IAM Roles for Service Accounts) annotation for AWS access.
+#
+# Required IAM Permissions:
+#   - secretsmanager:GetSecretValue
+#   - secretsmanager:UpdateSecret
+#   - secretsmanager:DescribeSecret
+#
+# Resource Scope:
+#   - arn:aws:secretsmanager:REGION:ACCOUNT:secret:{{ .Values.externalSecrets.jwtKeysKey }}*
+# ==============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.rotation.jwt.serviceAccount.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rotation
+  {{- with .Values.rotation.jwt.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+---
+
+{{- if .Values.rotation.database.enabled }}
+{{- if .Values.rotation.database.serviceAccount.create }}
+---
+# ==============================================================================
+# ServiceAccount for Database Encryption Key Rotation
+# ==============================================================================
+# This ServiceAccount is used by the database encryption key rotation CronJob
+# and re-encryption Job to access AWS Secrets Manager and the database.
+#
+# Required IAM Permissions:
+#   - secretsmanager:GetSecretValue
+#   - secretsmanager:UpdateSecret
+#   - secretsmanager:DescribeSecret
+#
+# Resource Scope:
+#   - arn:aws:secretsmanager:REGION:ACCOUNT:secret:{{ .Values.externalSecrets.databaseKey }}*
+# ==============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.rotation.database.serviceAccount.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rotation
+  {{- with .Values.rotation.database.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+---
+
+{{- if or .Values.rotation.jwt.enabled .Values.rotation.database.enabled }}
+---
+# ==============================================================================
+# Role for Rotation Jobs
+# ==============================================================================
+# Grants rotation jobs permission to:
+#   1. Read secrets created by External Secrets Operator
+#   2. Trigger pod restarts (if manual restart is needed)
+#   3. Read deployment status for verification
+# ==============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "flask-app.fullname" . }}-rotation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rotation
+rules:
+# Read secrets for verification
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames:
+  - {{ include "flask-app.fullname" . }}-jwt-keys
+  - {{ include "flask-app.fullname" . }}-db-credentials
+  verbs: ["get", "list"]
+
+# Read deployments for status checks
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  resourceNames:
+  - {{ include "flask-app.fullname" . }}
+  verbs: ["get", "list"]
+
+# Optional: Restart deployments (if Reloader not used)
+{{- if not .Values.rotation.reloader.enabled }}
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  resourceNames:
+  - {{ include "flask-app.fullname" . }}
+  verbs: ["patch"]
+{{- end }}
+
+# Read pods for verification
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+
+# Read External Secrets for sync status
+- apiGroups: ["external-secrets.io"]
+  resources: ["externalsecrets"]
+  verbs: ["get", "list"]
+
+---
+
+{{- if .Values.rotation.jwt.enabled }}
+# ==============================================================================
+# RoleBinding for JWT Rotation ServiceAccount
+# ==============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "flask-app.fullname" . }}-jwt-rotation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rotation
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.rotation.jwt.serviceAccount.name }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "flask-app.fullname" . }}-rotation
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+
+---
+
+{{- if .Values.rotation.database.enabled }}
+# ==============================================================================
+# RoleBinding for Database Encryption Key Rotation ServiceAccount
+# ==============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "flask-app.fullname" . }}-db-key-rotation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rotation
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.rotation.database.serviceAccount.name }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "flask-app.fullname" . }}-rotation
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+
+{{- end }}

@@ -197,6 +197,14 @@ config:
   DB_TYPE: "mysql"
   DB_HOST: "flask-app-db"
   DB_PORT: "3306"
+  # Encryption settings
+  DB_ENCRYPTION_ENABLED: "true"
+  DB_ENCRYPTION_ALGORITHM: "FERNET"
+  DB_ENCRYPTION_KEY_ROTATION_GRACE_PERIOD: "86400"  # 24 hours in seconds
+  # Directory for versioned encryption keys (mounted from secrets)
+  DATABASE_ENCRYPTION_KEYS_DIR: "/run/secrets/db_encryption_keys"
+  # Fields to encrypt (comma-separated)
+  DB_ENCRYPTED_FIELDS: "email,phone,medical_notes,patient_name"
 
 externalSecrets:
   enabled: false
@@ -243,6 +251,52 @@ jwt:
 
   # IMPORTANT: leave this false in real envs; keys come from existingSecret
   createSecret: false
+
+# Rotation configuration for secrets
+rotation:
+  # JWT key rotation settings
+  jwt:
+    enabled: false  # Enable per environment (staging/prod)
+    schedule: "0 2 * * 0"  # Cron: Weekly on Sunday at 2 AM
+    gracePeriodDays: 7  # Old keys remain valid for 7 days
+    retention: 2  # Keep 2 versions (current + previous)
+    serviceAccount:
+      create: true
+      name: "flask-app-jwt-rotator"
+      annotations: {}  # Add IRSA annotation per environment
+  
+  # Database encryption key rotation settings
+  database:
+    enabled: false  # Enable per environment
+    schedule: "0 3 1 * *"  # Cron: Monthly on 1st day at 3 AM
+    gracePeriodDays: 30  # Old keys can decrypt for 30 days
+    retention: 2  # Keep 2 versions during migration
+    batchSize: 100  # Records per batch during re-encryption
+    serviceAccount:
+      create: true
+      name: "flask-app-db-key-rotator"
+      annotations: {}  # Add IRSA annotation per environment
+  
+  # Reloader for automatic pod restart on secret changes
+  reloader:
+    enabled: false  # Set to true to enable Stakater Reloader integration
+    autoRestart: true  # Auto-restart pods when secrets change
+
+# Monitoring configuration (Prometheus Operator)
+monitoring:
+  enabled: false  # Enable per environment
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}  # Additional labels for ServiceMonitor
+    metricRelabelings: []
+    relabelings: []
+  prometheusRule:
+    enabled: true
+    labels: {}  # Additional labels for PrometheusRule
+    additionalRules: []  # Custom alerting rules
+
 # --- NEW SECTION: Sensitive configuration ---
 # These values will be loaded into a Secret
 # DO NOT put default passwords here. Set them during deployment.

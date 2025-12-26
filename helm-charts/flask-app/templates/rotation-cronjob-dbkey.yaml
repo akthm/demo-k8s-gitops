@@ -1,0 +1,293 @@
+{{- if .Values.rotation.database.enabled }}
+---
+# ==============================================================================
+# Database Encryption Key Rotation CronJob
+# ==============================================================================
+# This CronJob automatically rotates database encryption keys in AWS Secrets Manager
+# on a configurable schedule (default: monthly).
+#
+# Rotation Process:
+#   1. Read current DATABASE_ENCRYPTION_KEY from AWS Secrets Manager
+#   2. Generate new Fernet encryption key
+#   3. Update AWS secret with multi-version structure (v1, v2, current_version)
+#   4. External Secrets Operator syncs new keys to K8s
+#   5. Trigger re-encryption Job to migrate data to new key
+#
+# IMPORTANT: This does NOT immediately re-encrypt data. That's done by the
+# separate re-encryption Job triggered after this CronJob completes.
+#
+# Grace Period: Old keys can decrypt data for {{ .Values.rotation.database.gracePeriodDays }} days
+# Schedule: {{ .Values.rotation.database.schedule }}
+# ==============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "flask-app.fullname" . }}-db-key-rotation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rotation
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  schedule: {{ .Values.rotation.database.schedule | quote }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid  # Critical: Prevent overlapping rotations
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "flask-app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: db-key-rotation
+    spec:
+      backoffLimit: 1  # Only retry once - rotation is sensitive
+      ttlSecondsAfterFinished: 172800  # Keep for 48 hours for debugging
+      template:
+        metadata:
+          labels:
+            {{- include "flask-app.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: db-key-rotation
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          serviceAccountName: {{ .Values.rotation.database.serviceAccount.name }}
+          restartPolicy: Never  # Don't retry automatically
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+          - name: db-key-rotator
+            image: python:3.11-slim
+            command: ["/bin/bash"]
+            args:
+            - "-c"
+            - |
+              set -euo pipefail
+              
+              echo "==================================================================="
+              echo "Database Encryption Key Rotation - $(date -Iseconds)"
+              echo "==================================================================="
+              echo "Environment: {{ .Release.Namespace }}"
+              echo "Secret Path: {{ .Values.externalSecrets.databaseKey }}"
+              echo "Grace Period: {{ .Values.rotation.database.gracePeriodDays }} days"
+              echo "==================================================================="
+              
+              # Install dependencies
+              echo "Installing dependencies..."
+              pip install --quiet awscli cryptography boto3
+              
+              # Variables
+              SECRET_NAME="{{ .Values.externalSecrets.databaseKey }}"
+              REGION="{{ .Values.externalSecrets.region | default "ap-south-1" }}"
+              BACKUP_DIR="/tmp/db-key-backup-$(date +%Y%m%d_%H%M%S)"
+              
+              mkdir -p "$BACKUP_DIR"
+              
+              # Step 1: Retrieve current secret
+              echo ""
+              echo "Step 1/7: Retrieving current database secret..."
+              CURRENT_SECRET=$(aws secretsmanager get-secret-value \
+                --secret-id "$SECRET_NAME" \
+                --region "$REGION" \
+                --query 'SecretString' \
+                --output text 2>/dev/null || echo '{}')
+              
+              if [ "$CURRENT_SECRET" = "{}" ]; then
+                echo "ERROR: Failed to retrieve database secret"
+                exit 1
+              fi
+              
+              echo "$CURRENT_SECRET" > "$BACKUP_DIR/current_secret.json"
+              echo "✓ Current secret backed up"
+              
+              # Step 2: Parse current key structure
+              echo ""
+              echo "Step 2/7: Analyzing current key structure..."
+              
+              # Check if versioned structure exists
+              HAS_V1=$(echo "$CURRENT_SECRET" | jq 'has("DATABASE_ENCRYPTION_KEY_V1")')
+              CURRENT_VERSION=$(echo "$CURRENT_SECRET" | jq -r '.CURRENT_KEY_VERSION // "v1"')
+              
+              if [ "$HAS_V1" = "false" ]; then
+                echo "  ERROR: Secret must use versioned structure (DATABASE_ENCRYPTION_KEY_V1, etc.)"
+                echo "  Please migrate existing secret to new structure first"
+                exit 1
+              fi
+              
+              echo "  Versioned structure detected"
+              
+              # Extract current key
+              CURRENT_KEY=$(echo "$CURRENT_SECRET" | jq -r ".DATABASE_ENCRYPTION_KEY_${CURRENT_VERSION}")
+              if [ -z "$CURRENT_KEY" ] || [ "$CURRENT_KEY" = "null" ]; then
+                echo "ERROR: Current key version ${CURRENT_VERSION} not found in secret"
+                exit 1
+              fi
+              
+              echo "$CURRENT_KEY" > "$BACKUP_DIR/${CURRENT_VERSION}.key"
+              
+              # Calculate next version
+              VERSION_NUM=$(echo "$CURRENT_VERSION" | sed 's/v//')
+              NEXT_VERSION_NUM=$((VERSION_NUM + 1))
+              NEXT_VERSION="v${NEXT_VERSION_NUM}"
+              MIGRATE_FROM="$CURRENT_VERSION"
+              
+              echo "✓ Current version: $CURRENT_VERSION"
+              echo "✓ Next version: $NEXT_VERSION"
+              echo "✓ Migration path: $MIGRATE_FROM → $NEXT_VERSION"
+              
+              # Step 3: Generate new encryption key
+              echo ""
+              echo "Step 3/7: Generating new Fernet encryption key..."
+              NEW_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+              echo "$NEW_KEY" > "$BACKUP_DIR/${NEXT_VERSION}.key"
+              echo "✓ New key generated: $NEXT_VERSION"
+              echo "  Key preview: ${NEW_KEY:0:16}..."
+              
+              # Step 4: Construct new secret structure
+              echo ""
+              echo "Step 4/7: Constructing multi-version secret structure..."
+              
+              # Build new secret preserving all existing fields and adding new version
+              NEW_SECRET=$(echo "$CURRENT_SECRET" | jq \
+                --arg next_version "$NEXT_VERSION" \
+                --arg next_key "$NEW_KEY" \
+                --arg rotation_date "$(date -Iseconds)" \
+                --arg migrate_from "$MIGRATE_FROM" \
+                --arg grace_days "{{ .Values.rotation.database.gracePeriodDays }}" \
+                '. + {
+                  ("DATABASE_ENCRYPTION_KEY_" + $next_version): $next_key,
+                  CURRENT_KEY_VERSION: $next_version,
+                  ROTATION_DATE: $rotation_date,
+                  MIGRATION_STATUS: "pending",
+                  MIGRATE_FROM_VERSION: $migrate_from,
+                  GRACE_PERIOD_DAYS: $grace_days
+                }')
+              
+              echo "$NEW_SECRET" > "$BACKUP_DIR/new_secret.json"
+              echo "✓ New secret structure created"
+              echo "  All version keys:"
+              echo "$NEW_SECRET" | jq -r 'keys[] | select(startswith("DATABASE_ENCRYPTION_KEY_"))' | sed 's/^/    - /'
+              
+              # Step 5: Update AWS Secrets Manager
+              echo ""
+              echo "Step 5/7: Updating AWS Secrets Manager..."
+              aws secretsmanager update-secret \
+                --secret-id "$SECRET_NAME" \
+                --secret-string "$NEW_SECRET" \
+                --region "$REGION" \
+                --description "DB encryption key rotated to $NEXT_VERSION on $(date -Iseconds)" > /dev/null
+              
+              echo "✓ AWS secret updated successfully"
+              
+              # Step 6: Wait for External Secrets sync
+              echo ""
+              echo "Step 6/7: Waiting for External Secrets Operator to sync..."
+              echo "  Refresh interval: 1 hour (or force sync via ESO)"
+              echo "  Sleeping for 30 seconds to allow sync to start..."
+              sleep 30
+              
+              # Check if External Secret status shows sync
+              EXTERNAL_SECRET_NAME="{{ include "flask-app.fullname" . }}-db-credentials"
+              if kubectl get externalsecret "$EXTERNAL_SECRET_NAME" -n {{ .Release.Namespace }} &>/dev/null; then
+                SYNC_STATUS=$(kubectl get externalsecret "$EXTERNAL_SECRET_NAME" -n {{ .Release.Namespace }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+                echo "  ExternalSecret sync status: $SYNC_STATUS"
+              fi
+              
+              echo "✓ External Secrets sync initiated"
+              
+              # Step 7: Trigger re-encryption Job
+              echo ""
+              echo "Step 7/7: Triggering data re-encryption Job..."
+              
+              # Create a Job to run re-encryption
+              cat <<EOF | kubectl apply -f -
+              apiVersion: batch/v1
+              kind: Job
+              metadata:
+                name: {{ include "flask-app.fullname" . }}-reencrypt-$(date +%s)
+                namespace: {{ .Release.Namespace }}
+                labels:
+                  app.kubernetes.io/name: {{ include "flask-app.name" . }}
+                  app.kubernetes.io/instance: {{ .Release.Name }}
+                  app.kubernetes.io/component: reencryption
+              spec:
+                backoffLimit: 3
+                ttlSecondsAfterFinished: 86400
+                template:
+                  metadata:
+                    labels:
+                      app.kubernetes.io/name: {{ include "flask-app.name" . }}
+                      app.kubernetes.io/component: reencryption
+                  spec:
+                    serviceAccountName: {{ .Values.rotation.database.serviceAccount.name }}
+                    restartPolicy: OnFailure
+                    containers:
+                    - name: reencrypt
+                      image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+                      command: ["python", "scripts/migrate-encryption-keys.py"]
+                      args:
+                      - --from-version=$MIGRATE_FROM
+                      - --to-version=$NEXT_VERSION
+                      - --batch-size={{ .Values.rotation.database.batchSize }}
+                      envFrom:
+                      - configMapRef:
+                          name: {{ include "flask-app.fullname" . }}-config
+                      - secretRef:
+                          name: {{ .Values.secretNames.databaseCredentials }}
+                      resources:
+                        requests:
+                          cpu: 100m
+                          memory: 256Mi
+                        limits:
+                          cpu: 500m
+                          memory: 512Mi
+              EOF
+              
+              echo "✓ Re-encryption Job created"
+              
+              # Secure cleanup
+              echo ""
+              echo "Cleaning up sensitive files..."
+              shred -u "$BACKUP_DIR"/*.key 2>/dev/null || rm -f "$BACKUP_DIR"/*.key
+              echo "✓ Temporary key files securely deleted"
+              
+              echo ""
+              echo "==================================================================="
+              echo "✅ Database Encryption Key Rotation Complete"
+              echo "==================================================================="
+              echo "Rotation Summary:"
+              echo "  Previous Version: $MIGRATE_FROM"
+              echo "  New Version: $NEXT_VERSION"
+              echo "  Grace Period: {{ .Values.rotation.database.gracePeriodDays }} days"
+              echo ""
+              echo "Next Steps:"
+              echo "  1. Monitor re-encryption Job progress"
+              echo "  2. Verify data integrity after migration"
+              echo "  3. Old key remains available for {{ .Values.rotation.database.gracePeriodDays }} days"
+              echo "  4. After grace period, remove old key version from AWS"
+              echo "==================================================================="
+              echo "Backup location: $BACKUP_DIR"
+              echo "==================================================================="
+            
+            env:
+            - name: AWS_REGION
+              value: {{ .Values.externalSecrets.region | default "ap-south-1" | quote }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.externalSecrets.region | default "ap-south-1" | quote }}
+            
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+            
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: false
+{{- end }}

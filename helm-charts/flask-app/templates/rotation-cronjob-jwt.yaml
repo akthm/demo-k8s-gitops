@@ -1,0 +1,243 @@
+{{- if .Values.rotation.jwt.enabled }}
+---
+# ==============================================================================
+# JWT Key Rotation CronJob
+# ==============================================================================
+# This CronJob automatically rotates JWT signing keys in AWS Secrets Manager
+# on a configurable schedule (default: weekly).
+#
+# Rotation Process:
+#   1. Read current JWT keys from AWS Secrets Manager
+#   2. Move CURRENT keys to PREVIOUS keys
+#   3. Generate new RSA key pair for CURRENT
+#   4. Update AWS secret with new structure
+#   5. External Secrets Operator syncs new keys to K8s (within refreshInterval)
+#   6. Pods automatically restart (if Reloader enabled) or on next deployment
+#
+# Grace Period: Old tokens remain valid for {{ .Values.rotation.jwt.gracePeriodDays }} days
+# Schedule: {{ .Values.rotation.jwt.schedule }}
+# ==============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "flask-app.fullname" . }}-jwt-rotation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rotation
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  schedule: {{ .Values.rotation.jwt.schedule | quote }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid  # Prevent overlapping rotations
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "flask-app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: jwt-rotation
+    spec:
+      backoffLimit: 2  # Retry twice on failure
+      ttlSecondsAfterFinished: 86400  # Clean up after 24 hours
+      template:
+        metadata:
+          labels:
+            {{- include "flask-app.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: jwt-rotation
+          annotations:
+            sidecar.istio.io/inject: "false"  # No service mesh for rotation jobs
+        spec:
+          serviceAccountName: {{ .Values.rotation.jwt.serviceAccount.name }}
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+          - name: jwt-rotator
+            image: amazon/aws-cli:2.15.0
+            command: ["/bin/bash"]
+            args:
+            - "-c"
+            - |
+              set -euo pipefail
+              
+              echo "==================================================================="
+              echo "JWT Key Rotation - $(date -Iseconds)"
+              echo "==================================================================="
+              echo "Environment: {{ .Release.Namespace }}"
+              echo "Secret Path: {{ .Values.externalSecrets.jwtKeysKey }}"
+              echo "Grace Period: {{ .Values.rotation.jwt.gracePeriodDays }} days"
+              echo "==================================================================="
+              
+              # Install dependencies
+              echo "Installing dependencies..."
+              yum install -y openssl jq python3 python3-pip > /dev/null 2>&1 || true
+              pip3 install cryptography --quiet || true
+              
+              # Variables
+              SECRET_NAME="{{ .Values.externalSecrets.jwtKeysKey }}"
+              REGION="{{ .Values.externalSecrets.region | default "ap-south-1" }}"
+              BACKUP_DIR="/tmp/jwt-backup-$(date +%Y%m%d_%H%M%S)"
+              
+              # Create backup directory
+              mkdir -p "$BACKUP_DIR"
+              
+              # Step 1: Retrieve current JWT keys
+              echo ""
+              echo "Step 1/6: Retrieving current JWT keys from AWS Secrets Manager..."
+              CURRENT_SECRET=$(aws secretsmanager get-secret-value \
+                --secret-id "$SECRET_NAME" \
+                --region "$REGION" \
+                --query 'SecretString' \
+                --output text 2>/dev/null || echo '{}')
+              
+              if [ "$CURRENT_SECRET" = "{}" ]; then
+                echo "ERROR: Failed to retrieve secret or secret is empty"
+                exit 1
+              fi
+              
+              echo "$CURRENT_SECRET" > "$BACKUP_DIR/current_secret.json"
+              echo "✓ Current secret backed up to $BACKUP_DIR/current_secret.json"
+              
+              # Step 2: Extract current keys
+              echo ""
+              echo "Step 2/6: Extracting current keys..."
+              CURRENT_JWT_PRIVATE=$(echo "$CURRENT_SECRET" | jq -r '.JWT_PRIVATE_KEY // empty')
+              CURRENT_JWT_PUBLIC=$(echo "$CURRENT_SECRET" | jq -r '.JWT_PUBLIC_KEY // empty')
+              
+              if [ -z "$CURRENT_JWT_PRIVATE" ] || [ -z "$CURRENT_JWT_PUBLIC" ]; then
+                echo "WARNING: No existing JWT keys found. This may be first-time setup."
+                CURRENT_JWT_PRIVATE=""
+                CURRENT_JWT_PUBLIC=""
+              else
+                echo "✓ Current JWT keys extracted"
+                echo "  Private key length: $(echo "$CURRENT_JWT_PRIVATE" | wc -c) bytes"
+                echo "  Public key length: $(echo "$CURRENT_JWT_PUBLIC" | wc -c) bytes"
+              fi
+              
+              # Step 3: Generate new RSA key pair
+              echo ""
+              echo "Step 3/6: Generating new RSA key pair (2048-bit)..."
+              openssl genrsa -out "$BACKUP_DIR/new_private.pem" 2048 2>/dev/null
+              openssl rsa -in "$BACKUP_DIR/new_private.pem" -pubout -out "$BACKUP_DIR/new_public.pem" 2>/dev/null
+              
+              NEW_JWT_PRIVATE=$(cat "$BACKUP_DIR/new_private.pem")
+              NEW_JWT_PUBLIC=$(cat "$BACKUP_DIR/new_public.pem")
+              
+              echo "✓ New RSA key pair generated"
+              echo "  Private key: $BACKUP_DIR/new_private.pem"
+              echo "  Public key: $BACKUP_DIR/new_public.pem"
+              
+              # Step 4: Construct new secret with rotation support
+              echo ""
+              echo "Step 4/6: Constructing new secret structure..."
+              
+              if [ -n "$CURRENT_JWT_PRIVATE" ]; then
+                # Rotation: CURRENT → PREVIOUS, NEW → CURRENT
+                NEW_SECRET=$(jq -n \
+                  --arg current_private "$NEW_JWT_PRIVATE" \
+                  --arg current_public "$NEW_JWT_PUBLIC" \
+                  --arg previous_private "$CURRENT_JWT_PRIVATE" \
+                  --arg previous_public "$CURRENT_JWT_PUBLIC" \
+                  '{
+                    JWT_PRIVATE_KEY: $current_private,
+                    JWT_PUBLIC_KEY: $current_public,
+                    JWT_PRIVATE_KEY_PREVIOUS: $previous_private,
+                    JWT_PUBLIC_KEY_PREVIOUS: $previous_public,
+                    ROTATION_DATE: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
+                    ROTATION_VERSION: "v2",
+                    GRACE_PERIOD_DAYS: {{ .Values.rotation.jwt.gracePeriodDays }}
+                  }')
+                echo "✓ Rotation structure created (CURRENT → PREVIOUS, NEW → CURRENT)"
+              else
+                # First-time setup: Only CURRENT keys
+                NEW_SECRET=$(jq -n \
+                  --arg current_private "$NEW_JWT_PRIVATE" \
+                  --arg current_public "$NEW_JWT_PUBLIC" \
+                  '{
+                    JWT_PRIVATE_KEY: $current_private,
+                    JWT_PUBLIC_KEY: $current_public,
+                    ROTATION_DATE: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
+                    ROTATION_VERSION: "v1",
+                    GRACE_PERIOD_DAYS: {{ .Values.rotation.jwt.gracePeriodDays }}
+                  }')
+                echo "✓ Initial setup structure created (only CURRENT keys)"
+              fi
+              
+              echo "$NEW_SECRET" > "$BACKUP_DIR/new_secret.json"
+              
+              # Step 5: Update AWS Secrets Manager
+              echo ""
+              echo "Step 5/6: Updating AWS Secrets Manager..."
+              aws secretsmanager update-secret \
+                --secret-id "$SECRET_NAME" \
+                --secret-string "$NEW_SECRET" \
+                --region "$REGION" \
+                --description "JWT keys rotated on $(date -Iseconds)" > /dev/null
+              
+              echo "✓ AWS secret updated successfully"
+              
+              # Step 6: Verification
+              echo ""
+              echo "Step 6/6: Verifying rotation..."
+              VERIFY_SECRET=$(aws secretsmanager get-secret-value \
+                --secret-id "$SECRET_NAME" \
+                --region "$REGION" \
+                --query 'SecretString' \
+                --output text)
+              
+              VERIFY_ROTATION_DATE=$(echo "$VERIFY_SECRET" | jq -r '.ROTATION_DATE')
+              VERIFY_VERSION=$(echo "$VERIFY_SECRET" | jq -r '.ROTATION_VERSION')
+              HAS_PREVIOUS=$(echo "$VERIFY_SECRET" | jq -r 'has("JWT_PRIVATE_KEY_PREVIOUS")')
+              
+              echo "✓ Verification complete"
+              echo "  Rotation Date: $VERIFY_ROTATION_DATE"
+              echo "  Version: $VERIFY_VERSION"
+              echo "  Has Previous Keys: $HAS_PREVIOUS"
+              
+              # Secure cleanup
+              echo ""
+              echo "Cleaning up temporary files..."
+              shred -u "$BACKUP_DIR"/new_*.pem 2>/dev/null || rm -f "$BACKUP_DIR"/new_*.pem
+              echo "✓ Temporary key files securely deleted"
+              
+              echo ""
+              echo "==================================================================="
+              echo "✅ JWT Key Rotation Complete"
+              echo "==================================================================="
+              echo "Next Steps:"
+              echo "  1. External Secrets Operator will sync new keys (within refresh interval)"
+              {{- if .Values.rotation.reloader.enabled }}
+              echo "  2. Reloader will automatically restart pods with new keys"
+              {{- else }}
+              echo "  2. Manually restart pods or wait for next deployment"
+              {{- end }}
+              echo "  3. Old tokens remain valid for {{ .Values.rotation.jwt.gracePeriodDays }} days"
+              echo "  4. Monitor logs for authentication issues"
+              echo "==================================================================="
+              echo "Backup location: $BACKUP_DIR"
+              echo "==================================================================="
+            
+            env:
+            - name: AWS_REGION
+              value: {{ .Values.externalSecrets.region | default "ap-south-1" | quote }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.externalSecrets.region | default "ap-south-1" | quote }}
+            
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 256Mi
+            
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: false  # Need to write temporary files
+{{- end }}

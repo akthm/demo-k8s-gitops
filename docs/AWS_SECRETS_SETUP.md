@@ -19,31 +19,51 @@ This guide covers creating all necessary secrets in AWS Secrets Manager for the 
 **Secret Name:** `staging/backend/database`
 
 ```bash
+# Generate database encryption key (Fernet format) - Versioned structure
+DB_ENCRYPTION_KEY_V1=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+
 aws secretsmanager create-secret \
   --name staging/backend/database \
   --description "MySQL database credentials for Flask backend (staging)" \
-  --secret-string '{
-    "DB_USER": "flask_user",
-    "DB_PASSWORD": "CHANGE_ME_SECURE_PASSWORD",
-    "DB_HOST": "flask-app-db.backend.svc.cluster.local",
-    "DB_PORT": "3306",
-    "DB_NAME": "flask_staging"
-  }' \
+  --secret-string "{
+    \"DB_USER\": \"flask_user\",
+    \"DB_PASSWORD\": \"CHANGE_ME_SECURE_PASSWORD\",
+    \"DB_HOST\": \"flask-app-db.backend.svc.cluster.local\",
+    \"DB_PORT\": \"3306\",
+    \"DB_NAME\": \"flask_staging\",
+    \"DATABASE_ENCRYPTION_KEY_V1\": \"$DB_ENCRYPTION_KEY_V1\",
+    \"CURRENT_KEY_VERSION\": \"v1\",
+    \"ROTATION_DATE\": \"$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")\"
+  }" \
   --region ap-south-1
+
+echo "✅ Database encryption key v1 generated and stored securely"
+echo "   Key will be mounted as: /run/secrets/db_encryption_keys/v1.key"
+echo "   Current version: v1"
 ```
 
 **Production:**
 ```bash
+# Generate separate encryption key for production (versioned structure)
+DB_ENCRYPTION_KEY_V1=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+
 aws secretsmanager create-secret \
   --name prod/backend/database \
-  --secret-string '{
-    "DB_USER": "flask_user",
-    "DB_PASSWORD": "PRODUCTION_SECURE_PASSWORD",
-    "DB_HOST": "flask-app-db.backend.svc.cluster.local",
-    "DB_PORT": "3306",
-    "DB_NAME": "flask_production"
-  }' \
+  --secret-string "{
+    \"DB_USER\": \"flask_user\",
+    \"DB_PASSWORD\": \"PRODUCTION_SECURE_PASSWORD\",
+    \"DB_HOST\": \"flask-app-db.backend.svc.cluster.local\",
+    \"DB_PORT\": \"3306\",
+    \"DB_NAME\": \"flask_production\",
+    \"DATABASE_ENCRYPTION_KEY_V1\": \"$DB_ENCRYPTION_KEY_V1\",
+    \"CURRENT_KEY_VERSION\": \"v1\",
+    \"ROTATION_DATE\": \"$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")\"
+  }" \
   --region ap-south-1
+
+echo "✅ Production database encryption key v1 generated and stored securely"
+echo "   Key will be mounted as: /run/secrets/db_encryption_keys/v1.key"
+echo "   Current version: v1"
 ```
 
 ---
@@ -349,16 +369,21 @@ ENV="staging"
 
 echo "🔐 Creating AWS Secrets Manager secrets for $ENV environment..."
 
-# 1. Database
+# 1. Database (with versioned encryption key)
+DB_ENCRYPTION_KEY_V1=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+
 aws secretsmanager create-secret \
   --name $ENV/backend/database \
-  --secret-string '{
-    "DB_USER": "flask_user",
-    "DB_PASSWORD": "CHANGE_ME",
-    "DB_HOST": "flask-app-db.backend.svc.cluster.local",
-    "DB_PORT": "3306",
-    "DB_NAME": "flask_staging"
-  }' \
+  --secret-string "{
+    \"DB_USER\": \"flask_user\",
+    \"DB_PASSWORD\": \"CHANGE_ME\",
+    \"DB_HOST\": \"flask-app-db.backend.svc.cluster.local\",
+    \"DB_PORT\": \"3306\",
+    \"DB_NAME\": \"flask_staging\",
+    \"DATABASE_ENCRYPTION_KEY_V1\": \"$DB_ENCRYPTION_KEY_V1\",
+    \"CURRENT_KEY_VERSION\": \"v1\",
+    \"ROTATION_DATE\": \"$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")\"
+  }" \
   --region $REGION
 
 # 2. Flask App

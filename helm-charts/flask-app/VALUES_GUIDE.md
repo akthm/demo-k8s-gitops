@@ -81,7 +81,9 @@ externalSecrets:
 
 // staging/backend/admin
 {
-  "INITIAL_ADMIN_USER": "{\"username\": \"admin\", \"password\": \"admin123\", \"email\": \"admin@example.com\"}"
+  "INITIAL_ADMIN_USERNAME": "admin",
+  "INITIAL_ADMIN_PASSWORD": "admin123",
+  "INITIAL_ADMIN_EMAIL": "admin@example.com"
 }
 ```
 

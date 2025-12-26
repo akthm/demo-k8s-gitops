@@ -22,6 +22,15 @@ spec:
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.rotation.reloader.enabled }}
+        # Stakater Reloader annotations for automatic pod restart on secret changes
+        {{- if .Values.rotation.reloader.autoRestart }}
+        reloader.stakater.com/auto: "true"
+        {{- else }}
+        reloader.stakater.com/search: "true"
+        secret.reloader.stakater.com/reload: "{{ include "flask-app.fullname" . }}-jwt-keys,{{ .Values.secretNames.databaseCredentials }},{{ .Values.secretNames.flaskSecret }}"
+        {{- end }}
+      {{- end }}
       labels:
         {{- include "flask-app.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
@@ -89,14 +98,34 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.volumeMounts }}
           volumeMounts:
+          {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
-      {{- with .Values.volumes }}
+          # Mount database encryption keys as directory
+          - name: db-encryption-keys
+            mountPath: /run/secrets/db_encryption_keys
+            readOnly: true
       volumes:
+      {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      # Project db encryption keys from secret to files
+      - name: db-encryption-keys
+        projected:
+          defaultMode: 0400
+          sources:
+          - secret:
+              name: {{ .Values.secretNames.databaseCredentials }}
+              items:
+              - key: db_encryption_v1.key
+                path: v1.key
+              - key: db_encryption_v2.key
+                path: v2.key
+              - key: db_encryption_v3.key
+                path: v3.key
+              - key: db_encryption_current.version
+                path: current.version
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

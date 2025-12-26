@@ -1,0 +1,254 @@
+{{- if and .Values.monitoring .Values.monitoring.enabled }}
+---
+# ==============================================================================
+# ServiceMonitor for Prometheus Operator
+# ==============================================================================
+# This resource enables Prometheus to scrape metrics from the Flask application
+# including custom metrics for secret rotation monitoring.
+#
+# Metrics exposed:
+#   - mokhaback_jwt_key_rotation_timestamp_seconds
+#   - mokhaback_jwt_validation_errors_total
+#   - mokhaback_db_encryption_key_rotation_timestamp_seconds
+#   - mokhaback_db_encryption_key_version_distribution
+#   - mokhaback_encryption_operation_duration_seconds
+#   - mokhaback_secret_file_read_errors_total
+# ==============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "flask-app.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "flask-app.selectorLabels" . | nindent 6 }}
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+    {{- with .Values.monitoring.serviceMonitor.metricRelabelings }}
+    metricRelabelings:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.monitoring.serviceMonitor.relabelings }}
+    relabelings:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+{{- end }}
+
+---
+
+{{- if and .Values.monitoring .Values.monitoring.enabled }}
+---
+# ==============================================================================
+# PrometheusRule for Secret Rotation Alerting
+# ==============================================================================
+# Defines alerts for secret rotation monitoring:
+#   - JWTKeyOld: JWT keys not rotated in 90 days
+#   - DBEncryptionKeyOld: DB encryption keys not rotated in 180 days
+#   - EncryptionKeyVersionMismatch: High number of records using old keys
+#   - JWTValidationErrorsHigh: High rate of JWT validation failures
+#   - SecretFileReadErrors: Errors reading secret files
+#   - RotationJobFailed: CronJob execution failures
+# ==============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "flask-app.fullname" . }}-rotation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+    {{- with .Values.monitoring.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+  - name: secret-rotation
+    interval: 1m
+    rules:
+    
+    # JWT Key Age Alert
+    - alert: JWTKeyOld
+      expr: |
+        (time() - mokhaback_jwt_key_rotation_timestamp_seconds{namespace="{{ .Release.Namespace }}"}) > (90 * 86400)
+      for: 1h
+      labels:
+        severity: warning
+        component: security
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "JWT keys have not been rotated in 90 days"
+        description: |
+          JWT signing keys for {{ .Release.Namespace }} are {{ "{{" }} $value | humanizeDuration {{ "}}" }} old.
+          Rotation is recommended every 90 days for security best practices.
+          
+          Current rotation schedule: {{ .Values.rotation.jwt.schedule }}
+          Grace period: {{ .Values.rotation.jwt.gracePeriodDays }} days
+        runbook_url: "https://docs.example.com/runbooks/jwt-rotation"
+    
+    # Database Encryption Key Age Alert
+    - alert: DBEncryptionKeyOld
+      expr: |
+        (time() - mokhaback_db_encryption_key_rotation_timestamp_seconds{namespace="{{ .Release.Namespace }}"}) > (180 * 86400)
+      for: 1h
+      labels:
+        severity: warning
+        component: security
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "Database encryption keys have not been rotated in 180 days"
+        description: |
+          Database encryption keys for {{ .Release.Namespace }} are {{ "{{" }} $value | humanizeDuration {{ "}}" }} old.
+          Rotation is recommended every 180 days for compliance.
+          
+          Current rotation schedule: {{ .Values.rotation.database.schedule }}
+          Grace period: {{ .Values.rotation.database.gracePeriodDays }} days
+        runbook_url: "https://docs.example.com/runbooks/db-encryption-key-rotation"
+    
+    # Encryption Key Version Mismatch
+    - alert: EncryptionKeyVersionMismatch
+      expr: |
+        mokhaback_db_encryption_key_version_distribution{namespace="{{ .Release.Namespace }}", version!="current"} > 100
+      for: 5m
+      labels:
+        severity: warning
+        component: data-migration
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "High number of records using old encryption key versions"
+        description: |
+          {{ "{{" }} $value {{ "}}" }} records in {{ .Release.Namespace }} are still using old encryption key version {{ "{{" }} $labels.version {{ "}}" }}.
+          Re-encryption migration may be needed or still in progress.
+          
+          Table: {{ "{{" }} $labels.table {{ "}}" }}
+          Field: {{ "{{" }} $labels.field {{ "}}" }}
+        runbook_url: "https://docs.example.com/runbooks/encryption-key-migration"
+    
+    # JWT Validation Errors
+    - alert: JWTValidationErrorsHigh
+      expr: |
+        rate(mokhaback_jwt_validation_errors_total{namespace="{{ .Release.Namespace }}"}[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+        component: authentication
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "High rate of JWT validation errors"
+        description: |
+          JWT validation error rate is {{ "{{" }} $value | humanizePercentage {{ "}}" }} in {{ .Release.Namespace }}.
+          This may indicate:
+            - Recent key rotation causing token invalidation
+            - Misconfigured JWT keys
+            - Clock skew issues
+          
+          Error type: {{ "{{" }} $labels.error_type {{ "}}" }}
+        runbook_url: "https://docs.example.com/runbooks/jwt-validation-errors"
+    
+    # Secret File Read Errors
+    - alert: SecretFileReadErrors
+      expr: |
+        increase(mokhaback_secret_file_read_errors_total{namespace="{{ .Release.Namespace }}"}[5m]) > 0
+      for: 1m
+      labels:
+        severity: critical
+        component: security
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "Unable to read secret files"
+        description: |
+          {{ "{{" }} $value {{ "}}" }} secret file read errors detected in {{ .Release.Namespace }}.
+          Application may not be able to access required secrets.
+          
+          File type: {{ "{{" }} $labels.file_type {{ "}}" }}
+          
+          Check:
+            - Secret mount paths are correct
+            - External Secrets Operator is syncing properly
+            - Secret permissions are correct (0400)
+        runbook_url: "https://docs.example.com/runbooks/secret-file-errors"
+    
+    # Rotation Job Failed
+    - alert: RotationJobFailed
+      expr: |
+        kube_job_status_failed{namespace="{{ .Release.Namespace }}", job_name=~".*-rotation.*|.*-reencrypt.*"} > 0
+      for: 5m
+      labels:
+        severity: critical
+        component: rotation
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "Secret rotation job failed"
+        description: |
+          Rotation job {{ "{{" }} $labels.job_name {{ "}}" }} in {{ .Release.Namespace }} has failed.
+          
+          This requires immediate attention:
+            1. Check job logs: kubectl logs -n {{ .Release.Namespace }} job/{{ "{{" }} $labels.job_name {{ "}}" }}
+            2. Verify AWS credentials (IRSA)
+            3. Check External Secrets Operator status
+            4. Review rotation script logs for errors
+          
+          Manual intervention may be required to complete rotation.
+        runbook_url: "https://docs.example.com/runbooks/rotation-job-failure"
+    
+    # Encryption Operation Duration High
+    - alert: EncryptionOperationSlow
+      expr: |
+        histogram_quantile(0.95, 
+          rate(mokhaback_encryption_operation_duration_seconds_bucket{namespace="{{ .Release.Namespace }}"}[5m])
+        ) > 0.5
+      for: 10m
+      labels:
+        severity: warning
+        component: performance
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "Encryption/decryption operations are slow"
+        description: |
+          95th percentile encryption operation duration is {{ "{{" }} $value | humanizeDuration {{ "}}" }} in {{ .Release.Namespace }}.
+          
+          Operation: {{ "{{" }} $labels.operation {{ "}}" }}
+          Version: {{ "{{" }} $labels.version {{ "}}" }}
+          
+          This may indicate:
+            - Database performance issues
+            - High encryption key count (too many versions)
+            - Resource constraints
+        runbook_url: "https://docs.example.com/runbooks/encryption-performance"
+    
+    # External Secret Not Ready
+    - alert: ExternalSecretNotReady
+      expr: |
+        external_secrets_sync_calls_error{namespace="{{ .Release.Namespace }}", name=~".*jwt.*|.*db.*"} > 0
+      for: 5m
+      labels:
+        severity: critical
+        component: secrets
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "External Secret sync failures"
+        description: |
+          ExternalSecret {{ "{{" }} $labels.name {{ "}}" }} in {{ .Release.Namespace }} is failing to sync.
+          
+          Possible causes:
+            - AWS Secrets Manager secret not found
+            - IAM permissions insufficient (IRSA)
+            - Network connectivity issues
+            - Secret format mismatch
+          
+          Check External Secrets Operator logs for details.
+        runbook_url: "https://docs.example.com/runbooks/external-secrets-sync-failure"
+
+{{- if .Values.monitoring.prometheusRule.additionalRules }}
+{{ toYaml .Values.monitoring.prometheusRule.additionalRules | indent 4 }}
+{{- end }}
+{{- end }}
