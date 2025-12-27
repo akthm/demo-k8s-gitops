@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   tag: "1.1.3" # should be replaced
-  repository: akthm/back
+  repository: akthm/demo-back
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
