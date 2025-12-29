@@ -1,0 +1,43 @@
+{{- if and .Values.monitoring .Values.monitoring.enabled }}
+---
+# ==============================================================================
+# Grafana Dashboard ConfigMaps
+# ==============================================================================
+# These ConfigMaps contain Grafana dashboard JSON definitions that are
+# automatically discovered and loaded by Grafana via the sidecar container.
+#
+# The label 'grafana_dashboard: "1"' tells Grafana's dashboard sidecar to
+# import these dashboards into Grafana automatically.
+# ==============================================================================
+
+# RED Metrics Dashboard - Request Rate, Error Rate, Duration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "flask-app.fullname" . }}-dashboard-red
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    grafana_dashboard: "1"  # Auto-discovery label for Grafana sidecar
+    app.kubernetes.io/component: monitoring
+data:
+  app-metrics-red.json: |-
+{{ .Files.Get "dashboards/app-metrics-red.json" | indent 4 }}
+
+---
+
+# Secret Rotation Dashboard (existing)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "flask-app.fullname" . }}-dashboard-rotation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    grafana_dashboard: "1"  # Auto-discovery label for Grafana sidecar
+    app.kubernetes.io/component: monitoring
+data:
+  secret-rotation.json: |-
+{{ .Files.Get "dashboards/secret-rotation.json" | indent 4 }}
+
+{{- end }}
