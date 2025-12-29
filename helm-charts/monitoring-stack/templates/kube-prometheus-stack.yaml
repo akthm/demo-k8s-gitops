@@ -1,0 +1,129 @@
+{{- if .Values.kubePrometheusStack.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"  # Deploy before apps that use ServiceMonitor
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: {{ .Values.kubePrometheusStack.version }}
+    helm:
+      releaseName: prometheus
+      values: |
+        # Prometheus Operator Configuration
+        prometheus:
+          prometheusSpec:
+            retention: {{ .Values.kubePrometheusStack.prometheus.retention }}
+            scrapeInterval: {{ .Values.kubePrometheusStack.prometheus.scrapeInterval }}
+            scrapeTimeout: {{ .Values.kubePrometheusStack.prometheus.scrapeTimeout }}
+            evaluationInterval: {{ .Values.kubePrometheusStack.prometheus.evaluationInterval }}
+            
+            {{- with .Values.kubePrometheusStack.prometheus.externalLabels }}
+            externalLabels:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            
+            # ServiceMonitor selector - match app ServiceMonitors
+            serviceMonitorSelector:
+              {{- toYaml .Values.kubePrometheusStack.prometheus.serviceMonitorSelector | nindent 14 }}
+            
+            # PrometheusRule selector - match app PrometheusRules
+            ruleSelector:
+              {{- toYaml .Values.kubePrometheusStack.prometheus.ruleSelector | nindent 14 }}
+            
+            {{- if .Values.kubePrometheusStack.prometheus.storage.enabled }}
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  {{- if .Values.kubePrometheusStack.prometheus.storage.storageClassName }}
+                  storageClassName: {{ .Values.kubePrometheusStack.prometheus.storage.storageClassName }}
+                  {{- end }}
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: {{ .Values.kubePrometheusStack.prometheus.storage.size }}
+            {{- end }}
+            
+            resources:
+              {{- toYaml .Values.kubePrometheusStack.prometheus.resources | nindent 14 }}
+        
+        # Grafana Configuration
+        grafana:
+          enabled: {{ .Values.kubePrometheusStack.grafana.enabled }}
+          {{- if .Values.kubePrometheusStack.grafana.enabled }}
+          adminPassword: {{ .Values.kubePrometheusStack.grafana.adminPassword | quote }}
+          
+          {{- if .Values.kubePrometheusStack.grafana.persistence.enabled }}
+          persistence:
+            enabled: true
+            size: {{ .Values.kubePrometheusStack.grafana.persistence.size }}
+          {{- end }}
+          
+          # Auto-discover dashboards from ConfigMaps
+          sidecar:
+            dashboards:
+              enabled: {{ .Values.kubePrometheusStack.grafana.sidecar.dashboards.enabled }}
+              label: {{ .Values.kubePrometheusStack.grafana.sidecar.dashboards.label }}
+              labelValue: {{ .Values.kubePrometheusStack.grafana.sidecar.dashboards.labelValue | quote }}
+              searchNamespace: {{ .Values.kubePrometheusStack.grafana.sidecar.dashboards.searchNamespace }}
+          
+          # Additional datasources
+          additionalDataSources:
+            {{- if .Values.kubePrometheusStack.grafana.datasources.loki.enabled }}
+            - name: Loki
+              type: loki
+              url: {{ .Values.kubePrometheusStack.grafana.datasources.loki.url }}
+              access: proxy
+              isDefault: false
+            {{- end }}
+          
+          {{- if .Values.kubePrometheusStack.grafana.resources }}
+          resources:
+            {{- toYaml .Values.kubePrometheusStack.grafana.resources | nindent 12 }}
+          {{- end }}
+          {{- end }}
+        
+        # AlertManager (basic config)
+        alertmanager:
+          enabled: true
+          alertmanagerSpec:
+            retention: 120h
+        
+        # Disable node-exporter and kube-state-metrics for now (Phase 4: Cluster monitoring)
+        nodeExporter:
+          enabled: false
+        
+        kubeStateMetrics:
+          enabled: false
+        
+        # Prometheus Operator
+        prometheusOperator:
+          enabled: true
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.kubePrometheusStack.namespace }}
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true  # Required for CRDs
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+{{- end }}

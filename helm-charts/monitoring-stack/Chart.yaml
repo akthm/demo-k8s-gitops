@@ -1,0 +1,14 @@
+apiVersion: v2
+name: monitoring-stack
+description: Observability infrastructure for GitOps-managed applications (Prometheus Operator, Grafana, Loki)
+type: application
+version: 1.0.0
+appVersion: "1.0"
+maintainers:
+  - name: Platform Team
+keywords:
+  - monitoring
+  - observability
+  - prometheus
+  - grafana
+  - loki

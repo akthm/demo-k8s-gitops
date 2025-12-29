@@ -1,0 +1,34 @@
+# Staging environment - Enable full monitoring stack
+
+kubePrometheusStack:
+  enabled: true  # Enable Prometheus Operator in staging
+  
+  prometheus:
+    retention: 15d
+    scrapeInterval: 30s  # 30s scrape for staging
+    
+    storage:
+      enabled: true
+      size: 50Gi
+    
+    externalLabels:
+      cluster: staging-k8s
+      environment: staging
+  
+  grafana:
+    enabled: true
+    adminPassword: "changeme-staging"  # TODO: Move to External Secret
+    persistence:
+      enabled: true
+      size: 10Gi
+    
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: ALL  # Discover dashboards in all namespaces
+
+# Loki Stack - Phase 2 (disabled for now)
+lokiStack:
+  enabled: false  # Enable in Phase 2 for log aggregation

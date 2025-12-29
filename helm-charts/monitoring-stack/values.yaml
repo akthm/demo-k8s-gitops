@@ -1,0 +1,103 @@
+# Default values for monitoring-stack (local/dev - monitoring disabled)
+# Override in values.stage.yaml and values.prod.yaml
+
+# Prometheus Operator (kube-prometheus-stack)
+kubePrometheusStack:
+  enabled: false  # Disabled by default for local dev
+  namespace: monitoring
+  version: "55.5.0"  # Chart version (Prometheus Operator 0.70.0)
+  
+  prometheus:
+    retention: 15d
+    scrapeInterval: 30s
+    scrapeTimeout: 10s
+    evaluationInterval: 30s
+    
+    storage:
+      enabled: false  # No persistence in local dev
+      size: 50Gi
+      storageClassName: ""  # Use cluster default
+    
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+    
+    # ServiceMonitor selector - must match app ServiceMonitor labels
+    serviceMonitorSelector:
+      matchLabels:
+        release: prometheus
+    
+    # PrometheusRule selector - must match app PrometheusRule labels
+    ruleSelector:
+      matchLabels:
+        release: prometheus
+    
+    externalLabels:
+      cluster: local
+      environment: development
+  
+  grafana:
+    enabled: false  # Disabled by default
+    adminPassword: admin  # CHANGE IN PRODUCTION
+    persistence:
+      enabled: false
+      size: 10Gi
+    
+    # Auto-discover dashboards from ConfigMaps with this label
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: ALL
+    
+    datasources:
+      # Prometheus datasource (auto-configured by kube-prometheus-stack)
+      # Loki datasource (configured when loki enabled)
+      loki:
+        enabled: false
+        url: http://loki.monitoring.svc.cluster.local:3100
+
+# Loki Stack (centralized logging)
+lokiStack:
+  enabled: false  # Phase 2 - not implemented yet
+  namespace: monitoring
+  version: "2.9.11"
+  
+  loki:
+    retention: 168h  # 7 days
+    persistence:
+      enabled: false
+      size: 20Gi
+  
+  promtail:
+    enabled: false
+    config:
+      # Kubernetes pod discovery for app logs
+      snippets:
+        scrapeConfigs: |
+          - job_name: kubernetes-pods
+            kubernetes_sd_configs:
+              - role: pod
+            relabel_configs:
+              - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+                action: keep
+                regex: flask-app
+            pipeline_stages:
+              - json:
+                  expressions:
+                    timestamp: "@timestamp"
+                    level: level
+                    logger: logger
+                    message: message
+                    correlation_id: correlation_id
+              - timestamp:
+                  source: timestamp
+                  format: RFC3339
+              - labels:
+                  level:
+                  logger:

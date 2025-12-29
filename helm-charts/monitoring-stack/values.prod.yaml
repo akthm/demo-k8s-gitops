@@ -1,0 +1,62 @@
+# Production environment - Production-hardened monitoring
+
+kubePrometheusStack:
+  enabled: true
+  
+  prometheus:
+    retention: 30d  # Longer retention for production
+    scrapeInterval: 15s  # More frequent scraping
+    scrapeTimeout: 10s
+    evaluationInterval: 15s  # Faster alert evaluation
+    
+    storage:
+      enabled: true
+      size: 100Gi  # Larger storage for production
+    
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 4Gi
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+    
+    externalLabels:
+      cluster: production-k8s
+      environment: production
+    
+    # Production: Enable remote write for long-term storage (Thanos/Mimir)
+    # remoteWrite:
+    #   - url: http://thanos-receive.monitoring.svc:19291/api/v1/receive
+  
+  grafana:
+    enabled: true
+    adminPassword: ""  # TODO: Use External Secret in production
+    persistence:
+      enabled: true
+      size: 20Gi
+    
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: ALL
+
+# Loki Stack - Phase 2
+lokiStack:
+  enabled: false  # Enable in Phase 2
+  
+  loki:
+    retention: 336h  # 14 days for production
+    persistence:
+      enabled: true
+      size: 50Gi
