@@ -247,6 +247,67 @@ spec:
           
           Check External Secrets Operator logs for details.
         runbook_url: "https://docs.example.com/runbooks/external-secrets-sync-failure"
+    
+    # External Secret Status Not Synced
+    - alert: ExternalSecretStatusNotSynced
+      expr: |
+        externalsecret_status_condition{namespace="{{ .Release.Namespace }}", condition="Ready", status="False"} == 1
+      for: 10m
+      labels:
+        severity: critical
+        component: secrets
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "ExternalSecret not in Ready state"
+        description: |
+          ExternalSecret {{ "{{" }} $labels.name {{ "}}" }} in {{ .Release.Namespace }} is not Ready.
+          Status: {{ "{{" }} $labels.status {{ "}}" }}
+          
+          Application may be unable to start or function correctly without these secrets.
+          Check kubectl describe externalsecret {{ "{{" }} $labels.name {{ "}}" }} -n {{ .Release.Namespace }}
+        runbook_url: "https://docs.example.com/runbooks/external-secrets-not-ready"
+    
+    # DB Encryption Key Version Stale
+    - alert: DBEncryptionKeyVersionStale
+      expr: |
+        mokhaback_db_encryption_key_version_distribution{namespace="{{ .Release.Namespace }}", version!="current"} > 1000
+      for: 24h
+      labels:
+        severity: warning
+        component: data-security
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "Large number of records using old encryption key version"
+        description: |
+          {{ "{{" }} $value {{ "}}" }} records in table {{ "{{" }} $labels.table {{ "}}" }}.{{ "{{" }} $labels.field {{ "}}" }} 
+          are using encryption key version {{ "{{" }} $labels.version {{ "}}" }} (not current).
+          
+          This may indicate:
+            - Re-encryption job not running or failed
+            - High data volume requiring longer migration time
+            - Performance constraints preventing re-encryption
+          
+          Consider reviewing re-encryption job status and logs.
+        runbook_url: "https://docs.example.com/runbooks/encryption-key-migration"
+    
+    # Encryption Key Version Multiple Active
+    - alert: MultipleEncryptionKeyVersionsActive
+      expr: |
+        count by (namespace, table, field) (mokhaback_db_encryption_key_version_distribution{namespace="{{ .Release.Namespace }}"} > 0) > 3
+      for: 1h
+      labels:
+        severity: info
+        component: data-security
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "Multiple encryption key versions in use"
+        description: |
+          Table {{ "{{" }} $labels.table {{ "}}" }}.{{ "{{" }} $labels.field {{ "}}" }} has {{ "{{" }} $value {{ "}}" }} 
+          different encryption key versions active.
+          
+          This is normal during key rotation but should reduce over time as re-encryption completes.
+          Monitor progress: mokhaback_db_encryption_key_version_distribution
+        runbook_url: "https://docs.example.com/runbooks/encryption-key-versions"
 
   # RED Metrics Alerts (Request Rate, Error Rate, Duration)
   - name: application-red-metrics
