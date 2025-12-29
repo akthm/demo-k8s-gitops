@@ -248,6 +248,154 @@ spec:
           Check External Secrets Operator logs for details.
         runbook_url: "https://docs.example.com/runbooks/external-secrets-sync-failure"
 
+  # RED Metrics Alerts (Request Rate, Error Rate, Duration)
+  - name: application-red-metrics
+    interval: 30s
+    rules:
+    
+    # High HTTP Error Rate (5xx)
+    - alert: HighEndpointErrorRate
+      expr: |
+        (
+          sum by (namespace, endpoint) (rate(flask_http_request_total{namespace="{{ .Release.Namespace }}", status=~"5.."}[5m]))
+          /
+          sum by (namespace, endpoint) (rate(flask_http_request_total{namespace="{{ .Release.Namespace }}"}[5m]))
+        ) * 100 > 1
+      for: 5m
+      labels:
+        severity: warning
+        component: application
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "High HTTP 5xx error rate on endpoint"
+        description: |
+          Endpoint {{ "{{" }} $labels.endpoint {{ "}}" }} in {{ .Release.Namespace }} has {{ "{{" }} $value | humanizePercentage {{ "}}" }} error rate (5xx responses).
+          
+          This may indicate:
+            - Application bugs or exceptions
+            - Database connectivity issues
+            - Resource exhaustion
+            - Upstream service failures
+          
+          Check application logs for stack traces and error details.
+        runbook_url: "https://docs.example.com/runbooks/high-error-rate"
+    
+    # High HTTP 4xx Rate (Client Errors)
+    - alert: HighClientErrorRate
+      expr: |
+        (
+          sum by (namespace, endpoint) (rate(flask_http_request_total{namespace="{{ .Release.Namespace }}", status=~"4.."}[5m]))
+          /
+          sum by (namespace, endpoint) (rate(flask_http_request_total{namespace="{{ .Release.Namespace }}"}[5m]))
+        ) * 100 > 10
+      for: 10m
+      labels:
+        severity: info
+        component: application
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "High HTTP 4xx client error rate"
+        description: |
+          Endpoint {{ "{{" }} $labels.endpoint {{ "}}" }} has {{ "{{" }} $value | humanizePercentage {{ "}}" }} 4xx error rate.
+          
+          Common causes:
+            - Invalid client requests
+            - Authentication/authorization failures
+            - Missing resources (404)
+            - Rate limiting
+        runbook_url: "https://docs.example.com/runbooks/client-errors"
+    
+    # High Endpoint Latency (P95)
+    - alert: HighEndpointLatency
+      expr: |
+        histogram_quantile(0.95, 
+          sum by (namespace, endpoint, le) (rate(flask_http_request_duration_seconds_bucket{namespace="{{ .Release.Namespace }}"}[5m]))
+        ) > 0.5
+      for: 5m
+      labels:
+        severity: warning
+        component: performance
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "High endpoint latency (P95 > 500ms)"
+        description: |
+          95th percentile latency for {{ "{{" }} $labels.endpoint {{ "}}" }} is {{ "{{" }} $value {{ "}}" }}s in {{ .Release.Namespace }}.
+          
+          Performance degradation detected. Investigate:
+            - Database query performance
+            - External API calls
+            - Resource constraints (CPU/Memory)
+            - High request rate
+        runbook_url: "https://docs.example.com/runbooks/high-latency"
+    
+    # Endpoint Latency Critical (P99)
+    - alert: CriticalEndpointLatency
+      expr: |
+        histogram_quantile(0.99, 
+          sum by (namespace, endpoint, le) (rate(flask_http_request_duration_seconds_bucket{namespace="{{ .Release.Namespace }}"}[5m]))
+        ) > 2
+      for: 3m
+      labels:
+        severity: critical
+        component: performance
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "Critical endpoint latency (P99 > 2s)"
+        description: |
+          99th percentile latency for {{ "{{" }} $labels.endpoint {{ "}}" }} is {{ "{{" }} $value {{ "}}" }}s.
+          
+          Severe performance degradation - immediate investigation required.
+        runbook_url: "https://docs.example.com/runbooks/critical-latency"
+    
+    # No Requests Received (Service Down)
+    - alert: NoRequestsReceived
+      expr: |
+        sum by (namespace) (rate(flask_http_request_total{namespace="{{ .Release.Namespace }}"}[5m])) == 0
+      for: 5m
+      labels:
+        severity: critical
+        component: availability
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "No HTTP requests received"
+        description: |
+          Flask application in {{ .Release.Namespace }} has not received any HTTP requests in the last 5 minutes.
+          
+          Possible causes:
+            - Service is down
+            - Network connectivity issues
+            - Ingress/Gateway misconfiguration
+            - All pods crashed or unavailable
+          
+          Check pod status and service endpoints immediately.
+        runbook_url: "https://docs.example.com/runbooks/service-down"
+    
+    # High Request Rate (Possible Attack)
+    - alert: UnusuallyHighRequestRate
+      expr: |
+        sum by (namespace) (rate(flask_http_request_total{namespace="{{ .Release.Namespace }}"}[1m])) 
+        > 
+        (sum by (namespace) (rate(flask_http_request_total{namespace="{{ .Release.Namespace }}"}[1h])) * 3)
+      for: 2m
+      labels:
+        severity: warning
+        component: security
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "Unusually high request rate detected"
+        description: |
+          Request rate in {{ .Release.Namespace }} is 3x higher than average.
+          Current: {{ "{{" }} $value {{ "}}" }} req/s
+          
+          Possible causes:
+            - DDoS attack
+            - Traffic spike
+            - Retry storm
+            - Bot activity
+          
+          Consider enabling rate limiting or investigating traffic patterns.
+        runbook_url: "https://docs.example.com/runbooks/traffic-spike"
+
 {{- if .Values.monitoring.prometheusRule.additionalRules }}
 {{ toYaml .Values.monitoring.prometheusRule.additionalRules | indent 4 }}
 {{- end }}

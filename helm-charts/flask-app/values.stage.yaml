@@ -59,3 +59,17 @@ autoscaling:
   maxReplicas: 1
 hpa:
   enabled: false
+
+# Enable monitoring in staging
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    labels:
+      release: prometheus  # Match Prometheus Operator selector
+  prometheusRule:
+    enabled: true
+    labels:
+      release: prometheus  # Match Prometheus Operator selector

@@ -18,10 +18,15 @@ spec:
       {{- include "flask-app.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
+        {{- if .Values.monitoring.enabled }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/metrics"
+        {{- end }}
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       {{- if .Values.rotation.reloader.enabled }}
         # Stakater Reloader annotations for automatic pod restart on secret changes
         {{- if .Values.rotation.reloader.autoRestart }}

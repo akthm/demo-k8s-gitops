@@ -25,3 +25,17 @@ ingress:
     - secretName: "fill-later-tls-secret"
       hosts:
         - "api.example.com"
+
+# Enable monitoring in production with optimized settings
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s  # More frequent scraping for production
+    scrapeTimeout: 10s
+    labels:
+      release: prometheus  # Match Prometheus Operator selector
+  prometheusRule:
+    enabled: true
+    labels:
+      release: prometheus  # Match Prometheus Operator selector

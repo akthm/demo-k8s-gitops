@@ -19,6 +19,10 @@ spec:
         - namespaceSelector:
             matchLabels:
               name: argocd
+        # Allow Prometheus scraping from monitoring namespace
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
       ports:
         - protocol: TCP
           port: 5000
