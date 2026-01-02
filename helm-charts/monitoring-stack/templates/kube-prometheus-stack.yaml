@@ -27,6 +27,10 @@ spec:
             scrapeTimeout: {{ .Values.kubePrometheusStack.prometheus.scrapeTimeout }}
             evaluationInterval: {{ .Values.kubePrometheusStack.prometheus.evaluationInterval }}
             
+            # Enable service monitor namespace discovery
+            serviceMonitorNamespaceSelector: {}  # Discover ServiceMonitors in all namespaces
+            serviceMonitorSelectorNilUsesHelmValues: false  # Use serviceMonitorSelector below
+            
             {{- with .Values.kubePrometheusStack.prometheus.externalLabels }}
             externalLabels:
               {{- toYaml . | nindent 14 }}
@@ -91,6 +95,14 @@ spec:
             {{- toYaml .Values.kubePrometheusStack.grafana.resources | nindent 12 }}
           {{- end }}
           {{- end }}
+        
+        # Kube-State-Metrics - Enable to get Kubernetes resource metrics
+        kubeStateMetrics:
+          enabled: true
+        
+        # Node Exporter - Enable to get node-level metrics
+        nodeExporter:
+          enabled: true
         
         # AlertManager (basic config)
         alertmanager:

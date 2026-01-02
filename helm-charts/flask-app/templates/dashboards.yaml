@@ -53,7 +53,7 @@ metadata:
     grafana_dashboard: "1"  # Auto-discovery label for Grafana sidecar
     app.kubernetes.io/component: monitoring
 data:
-  secret-rotation-working.json: |-
-{{ .Files.Get "dashboards/secret-rotation-working.json" | indent 4 }}
+  secrets-monitoring-final.json: |-
+{{ .Files.Get "dashboards/secrets-monitoring-final.json" | indent 4 }}
 
 {{- end }}
