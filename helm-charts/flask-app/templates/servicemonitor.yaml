@@ -76,6 +76,36 @@ spec:
     interval: 1m
     rules:
     
+    # External Secrets Metrics Missing Alert
+    - alert: ExternalSecretsMetricsMissing
+      expr: |
+        absent(externalsecret_status_condition{namespace="{{ .Release.Namespace }}"})
+      for: 5m
+      labels:
+        severity: critical
+        component: monitoring
+        namespace: {{ .Release.Namespace }}
+      annotations:
+        summary: "External Secrets Operator metrics not being collected"
+        description: |
+          No externalsecret_status_condition metrics found for namespace {{ .Release.Namespace }}.
+          
+          This indicates one of the following issues:
+            - External Secrets Operator is not running or deployed
+            - ESO metrics endpoint is not exposed or reachable
+            - ServiceMonitor for ESO is missing or misconfigured
+            - Prometheus is not scraping the ESO metrics endpoint
+          
+          Without these metrics, dashboards will show no data and alerts for
+          secret sync failures will not fire.
+          
+          Troubleshooting:
+            1. Check ESO pods: kubectl get pods -n external-secrets
+            2. Check ESO service: kubectl get svc -n external-secrets
+            3. Check ServiceMonitor: kubectl get servicemonitor -n external-secrets
+            4. Check Prometheus targets: kubectl port-forward -n monitoring svc/prometheus-operated 9090:9090
+        runbook_url: "https://docs.example.com/runbooks/eso-metrics-missing"
+    
     # JWT Key Age Alert
     - alert: JWTKeyOld
       expr: |

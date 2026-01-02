@@ -51,6 +51,11 @@ kubePrometheusStack:
         labelValue: "1"
         searchNamespace: ALL
 
+# Enable External Secrets Operator monitoring in production
+externalSecretsOperator:
+  monitoring:
+    enabled: true
+
 # Loki Stack - Phase 2
 lokiStack:
   enabled: false  # Enable in Phase 2

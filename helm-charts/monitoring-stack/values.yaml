@@ -101,3 +101,13 @@ lokiStack:
               - labels:
                   level:
                   logger:
+
+# External Secrets Operator Monitoring
+externalSecretsOperator:
+  namespace: external-secrets  # Namespace where ESO is deployed
+  monitoring:
+    enabled: false  # Disabled by default for local dev
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}  # Additional labels for ServiceMonitor
+    metricRelabelings: []

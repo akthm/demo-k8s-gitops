@@ -29,6 +29,11 @@ kubePrometheusStack:
         labelValue: "1"
         searchNamespace: ALL  # Discover dashboards in all namespaces
 
+# Enable External Secrets Operator monitoring in staging
+externalSecretsOperator:
+  monitoring:
+    enabled: true
+
 # Loki Stack - Phase 2 (disabled for now)
 lokiStack:
   enabled: false  # Enable in Phase 2 for log aggregation
