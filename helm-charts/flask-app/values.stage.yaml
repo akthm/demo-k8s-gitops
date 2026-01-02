@@ -12,6 +12,13 @@ externalSecrets:
   secretStoreRef:
     name: "aws-secrets-manager"
     kind: "ClusterSecretStore"
+  # Faster refresh for staging - check every 2 minutes
+  refreshInterval: "2m"
+  # Aggressive retry settings for staging
+  retrySettings:
+    maxRetries: 10          # More retries in staging for debugging
+    retryInterval: "5s"     # Quick initial retry
+    retryIntervalMax: "2m"  # Don't wait too long between retries
   # Staging AWS Secrets Manager keys
   databaseKey: "staging/backend/database"
   flaskAppKey: "staging/backend/flask-app"

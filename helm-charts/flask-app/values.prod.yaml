@@ -5,6 +5,13 @@ image:
 
 externalSecrets:
   enabled: true
+  # Production refresh - check every 10 minutes (more conservative)
+  refreshInterval: "10m"
+  # Production retry settings - balanced for reliability
+  retrySettings:
+    maxRetries: 8           # Reasonable retries for production
+    retryInterval: "15s"    # Slightly longer initial backoff
+    retryIntervalMax: "10m" # Max backoff aligned with refresh interval
   databaseUrlKey: "prod/backend/database-url"
   flaskKey: "prod/backend/flask-key"
 

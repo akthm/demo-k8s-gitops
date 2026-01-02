@@ -211,6 +211,16 @@ externalSecrets:
   secretStoreRef:
     name: "aws-secrets-manager"
     kind: "ClusterSecretStore"
+  # Refresh interval - how often to check for updates from AWS Secrets Manager
+  # Shorter intervals mean faster detection of changes but more API calls
+  refreshInterval: "5m"  # Check every 5 minutes (default: 1h)
+  
+  # Retry settings for failed secret syncs
+  retrySettings:
+    maxRetries: 5           # Number of retry attempts before giving up
+    retryInterval: "10s"    # Initial backoff between retries
+    retryIntervalMax: "5m"  # Maximum backoff between retries
+  
   # AWS Secrets Manager keys for each secret type
   # These should contain the actual secrets in your AWS account
   # Structure:

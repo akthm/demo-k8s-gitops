@@ -119,6 +119,10 @@ check_localstack() {
 }
 
 aws_local() {
+    # Set dummy credentials for LocalStack if not already set
+    export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}"
+    export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}"
+    
     aws --endpoint-url="${LOCALSTACK_ENDPOINT}" \
         --region="${REGION}" \
         --no-verify-ssl \

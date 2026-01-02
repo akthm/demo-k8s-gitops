@@ -26,7 +26,23 @@ data:
 
 ---
 
-# Secret Rotation Dashboard (existing)
+# Secret Rotation Dashboard (existing - with non-existent metrics)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "flask-app.fullname" . }}-dashboard-rotation-old
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    grafana_dashboard: "0"  # Disabled - requires custom app metrics
+    app.kubernetes.io/component: monitoring
+data:
+  secret-rotation.json: |-
+{{ .Files.Get "dashboards/secret-rotation.json" | indent 4 }}
+
+---
+
+# Secret Rotation Dashboard (working - uses actual metrics)
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -37,7 +53,7 @@ metadata:
     grafana_dashboard: "1"  # Auto-discovery label for Grafana sidecar
     app.kubernetes.io/component: monitoring
 data:
-  secret-rotation.json: |-
-{{ .Files.Get "dashboards/secret-rotation.json" | indent 4 }}
+  secret-rotation-working.json: |-
+{{ .Files.Get "dashboards/secret-rotation-working.json" | indent 4 }}
 
 {{- end }}
