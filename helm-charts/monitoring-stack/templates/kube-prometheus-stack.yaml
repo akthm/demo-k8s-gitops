@@ -110,13 +110,6 @@ spec:
           alertmanagerSpec:
             retention: 120h
         
-        # Disable node-exporter and kube-state-metrics for now (Phase 4: Cluster monitoring)
-        nodeExporter:
-          enabled: false
-        
-        kubeStateMetrics:
-          enabled: false
-        
         # Prometheus Operator
         prometheusOperator:
           enabled: true
