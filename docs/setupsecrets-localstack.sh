@@ -46,6 +46,17 @@ ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin123}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@localhost.com}"
 
+# Keycloak defaults
+KEYCLOAK_ADMIN_USER="${KEYCLOAK_ADMIN_USER:-admin}"
+KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-admin123}"
+KEYCLOAK_POSTGRES_PASSWORD="${KEYCLOAK_POSTGRES_PASSWORD:-postgres123}"
+KEYCLOAK_DB_PASSWORD="${KEYCLOAK_DB_PASSWORD:-keycloak123}"
+
+# Keycloak client secrets (generate random for local)
+KEYCLOAK_FLASK_SECRET="${KEYCLOAK_FLASK_SECRET:-flask-backend-secret-$(openssl rand -hex 16)}"
+KEYCLOAK_GRAFANA_SECRET="${KEYCLOAK_GRAFANA_SECRET:-grafana-secret-$(openssl rand -hex 16)}"
+KEYCLOAK_ARGOCD_SECRET="${KEYCLOAK_ARGOCD_SECRET:-argocd-secret-$(openssl rand -hex 16)}"
+
 ################################################################################
 # Helper Functions
 ################################################################################
@@ -309,6 +320,111 @@ create_jwt_keys_secret() {
     print_info "Secret is ready for rotation support"
 }
 
+create_keycloak_admin_secret() {
+    local secret_name="${ENV}/keycloak/admin"
+    
+    print_header "Creating Keycloak Admin Credentials"
+    
+    delete_secret_if_exists "${secret_name}"
+    
+    local secret_value=$(jq -n \
+        --arg user "$KEYCLOAK_ADMIN_USER" \
+        --arg pass "$KEYCLOAK_ADMIN_PASSWORD" \
+        '{
+            "admin-user": $user,
+            "admin-password": $pass
+        }')
+    
+    aws_local secretsmanager create-secret \
+        --name "${secret_name}" \
+        --description "Keycloak admin user credentials (${ENV})" \
+        --secret-string "${secret_value}" > /dev/null
+    
+    print_success "Created secret: ${secret_name}"
+    echo "    Admin user: ${KEYCLOAK_ADMIN_USER}"
+}
+
+create_keycloak_postgres_secret() {
+    local secret_name="${ENV}/keycloak/postgres"
+    
+    print_header "Creating Keycloak PostgreSQL Credentials"
+    
+    delete_secret_if_exists "${secret_name}"
+    
+    local secret_value=$(jq -n \
+        --arg postgres_pass "$KEYCLOAK_POSTGRES_PASSWORD" \
+        --arg keycloak_pass "$KEYCLOAK_DB_PASSWORD" \
+        '{
+            "postgres-password": $postgres_pass,
+            "password": $keycloak_pass
+        }')
+    
+    aws_local secretsmanager create-secret \
+        --name "${secret_name}" \
+        --description "Keycloak PostgreSQL database credentials (${ENV})" \
+        --secret-string "${secret_value}" > /dev/null
+    
+    print_success "Created secret: ${secret_name}"
+    echo "    PostgreSQL admin password: ****"
+    echo "    Keycloak DB password: ****"
+}
+
+create_keycloak_clients_secret() {
+    local secret_name="${ENV}/keycloak/clients"
+    
+    print_header "Creating Keycloak Client Secrets"
+    
+    delete_secret_if_exists "${secret_name}"
+    
+    print_info "Generating client secrets..."
+    
+    local secret_value=$(jq -n \
+        --arg flask "$KEYCLOAK_FLASK_SECRET" \
+        --arg grafana "$KEYCLOAK_GRAFANA_SECRET" \
+        --arg argocd "$KEYCLOAK_ARGOCD_SECRET" \
+        '{
+            "flask-backend-secret": $flask,
+            "grafana-secret": $grafana,
+            "argocd-secret": $argocd
+        }')
+    
+    aws_local secretsmanager create-secret \
+        --name "${secret_name}" \
+        --description "Keycloak OIDC client secrets (${ENV})" \
+        --secret-string "${secret_value}" > /dev/null
+    
+    print_success "Created secret: ${secret_name}"
+    echo "    flask-backend-secret: ${KEYCLOAK_FLASK_SECRET:0:16}..."
+    echo "    grafana-secret: ${KEYCLOAK_GRAFANA_SECRET:0:16}..."
+    echo "    argocd-secret: ${KEYCLOAK_ARGOCD_SECRET:0:16}..."
+    print_warning "Note: Update these in Keycloak after creating clients"
+}
+
+create_flask_oidc_secret() {
+    local secret_name="${ENV}/backend/oidc"
+    
+    print_header "Creating Flask OIDC Credentials"
+    
+    delete_secret_if_exists "${secret_name}"
+    
+    local secret_value=$(jq -n \
+        --arg client_id "flask-backend" \
+        --arg client_secret "$KEYCLOAK_FLASK_SECRET" \
+        '{
+            OIDC_CLIENT_ID: $client_id,
+            OIDC_CLIENT_SECRET: $client_secret
+        }')
+    
+    aws_local secretsmanager create-secret \
+        --name "${secret_name}" \
+        --description "Flask OIDC/Keycloak credentials (${ENV})" \
+        --secret-string "${secret_value}" > /dev/null
+    
+    print_success "Created secret: ${secret_name}"
+    echo "    Client ID: flask-backend"
+    echo "    Client Secret: ${KEYCLOAK_FLASK_SECRET:0:16}..."
+}
+
 ################################################################################
 # Verification Functions
 ################################################################################
@@ -321,6 +437,10 @@ verify_secrets() {
         "${ENV}/backend/flask-app"
         "${ENV}/backend/admin"
         "${ENV}/backend/jwt-keys"
+        "${ENV}/backend/oidc"
+        "${ENV}/keycloak/admin"
+        "${ENV}/keycloak/postgres"
+        "${ENV}/keycloak/clients"
     )
     
     local all_exist=true
@@ -349,7 +469,7 @@ list_secrets() {
     
     echo ""
     aws_local secretsmanager list-secrets \
-        --query "SecretList[?starts_with(Name, '${ENV}/backend')].{Name:Name,Description:Description}" \
+        --query "SecretList[?starts_with(Name, '${ENV}/')].{Name:Name,Description:Description}" \
         --output table
 }
 
@@ -386,6 +506,8 @@ Options:
     --admin-user USER      Admin username (default: admin)
     --admin-pass PASS      Admin password (default: admin123)
     --admin-email EMAIL    Admin email (default: admin@localhost.com)
+    --kc-admin-user USER   Keycloak admin username (default: admin)
+    --kc-admin-pass PASS   Keycloak admin password (default: admin123)
     --verify-only          Only verify existing secrets
     --list                 List all secrets
     --show SECRET          Show details of a specific secret
@@ -477,6 +599,14 @@ main() {
                 ADMIN_EMAIL="$2"
                 shift 2
                 ;;
+            --kc-admin-user)
+                KEYCLOAK_ADMIN_USER="$2"
+                shift 2
+                ;;
+            --kc-admin-pass)
+                KEYCLOAK_ADMIN_PASSWORD="$2"
+                shift 2
+                ;;
             --verify-only)
                 verify_only=true
                 shift
@@ -547,6 +677,18 @@ main() {
     echo ""
     
     create_jwt_keys_secret
+    echo ""
+    
+    create_keycloak_admin_secret
+    echo ""
+    
+    create_keycloak_postgres_secret
+    echo ""
+    
+    create_keycloak_clients_secret
+    echo ""
+    
+    create_flask_oidc_secret
     echo ""
     
     # Verify creation
