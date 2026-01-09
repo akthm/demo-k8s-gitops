@@ -68,3 +68,47 @@ securityContext:
   fsGroupChangePolicy: "OnRootMismatch"
 
 podSecurityContext: {}
+
+# ==============================================================================
+# Keycloak/OIDC Configuration for React Frontend
+# ==============================================================================
+# React app uses keycloak-js or @react-keycloak/web for authentication
+# These settings are injected into nginx config.js endpoint
+# ==============================================================================
+keycloak:
+  enabled: false  # Enable per environment
+  
+  # Keycloak server URL (accessible from browser)
+  url: "http://keycloak.staging.local"  # TODO: Update for your environment
+  
+  # Realm name
+  realm: "platform"
+  
+  # Client ID (public client with PKCE)
+  clientId: "react-frontend"
+  
+  # PKCE settings (recommended for SPAs)
+  pkceEnabled: true
+  
+  # OnLoad behavior: 'check-sso' (silent), 'login-required' (force login)
+  onLoad: "check-sso"
+  
+  # Silent SSO check (iframe-based)
+  silentCheckSsoEnabled: true
+  silentCheckSsoRedirectUri: "/silent-check-sso.html"
+  
+  # Token refresh settings
+  minTokenValidity: 30  # Refresh if token expires within 30 seconds
+
+# ==============================================================================
+# Runtime Config Injection
+# ==============================================================================
+# Injects configuration into window.__RUNTIME_CONFIG__ for React app
+# ==============================================================================
+runtimeConfig:
+  enabled: false  # Enable when using runtime config injection
+  # Values are merged with keycloak config when keycloak.enabled=true
+  additional: {}
+    # API_BASE_URL: "/api"
+    # FEATURE_FLAGS: "flag1,flag2"
+

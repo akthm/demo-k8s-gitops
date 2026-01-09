@@ -1,0 +1,48 @@
+{{- if or .Values.keycloak.enabled .Values.runtimeConfig.enabled }}
+# ==============================================================================
+# Runtime Configuration for React Frontend
+# ==============================================================================
+# Injects runtime configuration into the React app via /config.js endpoint
+# Usage in React: window.__RUNTIME_CONFIG__
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nginx-front.fullname" . }}-runtime-config
+  labels:
+    {{- include "nginx-front.labels" . | nindent 4 }}
+data:
+  config.js: |
+    window.__RUNTIME_CONFIG__ = {
+      {{- if .Values.keycloak.enabled }}
+      // Keycloak Configuration
+      KEYCLOAK_URL: "{{ .Values.keycloak.url }}",
+      KEYCLOAK_REALM: "{{ .Values.keycloak.realm }}",
+      KEYCLOAK_CLIENT_ID: "{{ .Values.keycloak.clientId }}",
+      KEYCLOAK_PKCE_ENABLED: {{ .Values.keycloak.pkceEnabled }},
+      KEYCLOAK_ON_LOAD: "{{ .Values.keycloak.onLoad }}",
+      KEYCLOAK_SILENT_CHECK_SSO: {{ .Values.keycloak.silentCheckSsoEnabled }},
+      KEYCLOAK_SILENT_CHECK_SSO_REDIRECT_URI: "{{ .Values.keycloak.silentCheckSsoRedirectUri }}",
+      KEYCLOAK_MIN_TOKEN_VALIDITY: {{ .Values.keycloak.minTokenValidity }},
+      {{- end }}
+      {{- if .Values.runtimeConfig.enabled }}
+      {{- range $key, $value := .Values.runtimeConfig.additional }}
+      {{ $key }}: {{ $value | quote }},
+      {{- end }}
+      {{- end }}
+      // API Configuration
+      API_BASE_URL: "{{ .Values.backend.path }}"
+    };
+  
+  # Silent SSO check HTML page for Keycloak
+  silent-check-sso.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <script>
+        parent.postMessage(location.href, location.origin);
+      </script>
+    </head>
+    <body></body>
+    </html>
+{{- end }}

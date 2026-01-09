@@ -91,6 +91,31 @@ spec:
                   name: {{ .Values.jwt.existingSecret }}
                   key: {{ .Values.jwt.publicKeyKey }}
               {{- end }}
+              {{- if .Values.oidc.enabled }}
+            # OIDC/Keycloak Configuration
+            - name: OIDC_ENABLED
+              value: "true"
+            - name: OIDC_ISSUER
+              value: {{ .Values.oidc.issuer | quote }}
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-oidc" (include "flask-app.fullname" .)) .Values.oidc.existingSecret }}
+                  key: OIDC_CLIENT_ID
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-oidc" (include "flask-app.fullname" .)) .Values.oidc.existingSecret }}
+                  key: OIDC_CLIENT_SECRET
+            - name: OIDC_SCOPES
+              value: {{ .Values.oidc.scopes | quote }}
+            - name: OIDC_AUDIENCE
+              value: {{ .Values.oidc.audience | quote }}
+            - name: OIDC_ALGORITHMS
+              value: {{ .Values.oidc.algorithms | join "," | quote }}
+            - name: OIDC_GROUPS_CLAIM
+              value: {{ .Values.oidc.groupsClaim | quote }}
+              {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

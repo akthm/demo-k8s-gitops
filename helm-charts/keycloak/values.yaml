@@ -1,0 +1,145 @@
+# ==============================================================================
+# Keycloak SSO - Default Values
+# ==============================================================================
+# This configuration deploys Keycloak as the identity provider for:
+# - Flask backend (OIDC bearer token validation)
+# - React frontend (OIDC authorization code flow with PKCE)
+# - ArgoCD (OIDC SSO)
+# - Grafana (Generic OAuth)
+# ==============================================================================
+
+# Enable/disable Keycloak deployment
+keycloak:
+  enabled: true
+  
+  # ------------------------------------------------------------------------------
+  # Production Mode
+  # ------------------------------------------------------------------------------
+  production: false
+  proxy: edge  # TLS terminates at ingress
+  
+  # ------------------------------------------------------------------------------
+  # Replicas & High Availability
+  # ------------------------------------------------------------------------------
+  replicaCount: 1
+  
+  # ------------------------------------------------------------------------------
+  # Admin Credentials
+  # ------------------------------------------------------------------------------
+  auth:
+    adminUser: admin
+    adminPassword: "admin"  # Override with existingSecret in staging/prod
+  
+  # ------------------------------------------------------------------------------
+  # Database Configuration
+  # ------------------------------------------------------------------------------
+  postgresql:
+    enabled: true
+    auth:
+      postgresPassword: "postgres"
+      password: "keycloak"
+      database: keycloak
+      username: keycloak
+    primary:
+      persistence:
+        enabled: true
+        size: 8Gi
+  
+  # ------------------------------------------------------------------------------
+  # Service Configuration
+  # ------------------------------------------------------------------------------
+  service:
+    type: ClusterIP
+    ports:
+      http: 80
+      https: 443
+  
+  # ------------------------------------------------------------------------------
+  # Ingress Configuration
+  # ------------------------------------------------------------------------------
+  ingress:
+    enabled: false  # Enable per environment
+    ingressClassName: nginx
+    hostname: keycloak.localhost
+    annotations: {}
+    tls: false
+  
+  # ------------------------------------------------------------------------------
+  # Resource Limits
+  # ------------------------------------------------------------------------------
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  
+  # ------------------------------------------------------------------------------
+  # Prometheus Metrics
+  # ------------------------------------------------------------------------------
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      labels:
+        release: prometheus
+
+  # ------------------------------------------------------------------------------
+  # Extra Environment Variables
+  # ------------------------------------------------------------------------------
+  extraEnvVars:
+    - name: KEYCLOAK_EXTRA_ARGS
+      value: "--features=token-exchange,admin-fine-grained-authz"
+
+# ------------------------------------------------------------------------------
+# External Secrets Configuration
+# ------------------------------------------------------------------------------
+externalSecrets:
+  enabled: false
+  refreshInterval: "5m"
+  secretStore:
+    name: aws-secrets-manager
+    kind: ClusterSecretStore
+  adminCredentials:
+    remoteRef: "staging/keycloak/admin"
+  postgresCredentials:
+    remoteRef: "staging/keycloak/postgres"
+  clientSecrets:
+    remoteRef: "staging/keycloak/clients"
+
+# ------------------------------------------------------------------------------
+# Realm Configuration Reference
+# ------------------------------------------------------------------------------
+# After deployment, create these in Keycloak Admin UI:
+#
+# Realm: platform
+#
+# Clients:
+#   - flask-backend (confidential, service account enabled)
+#   - react-frontend (public, PKCE required)
+#   - argocd (confidential)
+#   - grafana (confidential)
+#
+# Groups:
+#   - /platform-admins → role: admin
+#   - /developers → role: developer
+#   - /grafana-admins → role: grafana-admin
+#   - /grafana-editors → role: grafana-editor
+#
+# Client Scopes:
+#   - groups (maps group membership to token)
+#   - roles (maps realm roles to token)
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# ArgoCD OIDC Configuration
+# ------------------------------------------------------------------------------
+# Enable to generate ArgoCD ConfigMap patches for OIDC SSO
+# ------------------------------------------------------------------------------
+argocd:
+  oidc:
+    enabled: false  # Enable per environment
+    issuer: "http://keycloak.keycloak.svc.cluster.local/realms/platform"
+    clientId: "argocd"
+    # clientSecret is stored in argocd-secret (key: oidc.keycloak.clientSecret)

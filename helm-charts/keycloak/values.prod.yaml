@@ -1,0 +1,56 @@
+# ==============================================================================
+# Keycloak SSO - Production Environment
+# ==============================================================================
+
+keycloak:
+  production: true
+  replicaCount: 3  # HA configuration
+  
+  auth:
+    adminUser: admin
+    existingSecret: keycloak-admin-credentials
+    passwordSecretKey: admin-password
+  
+  postgresql:
+    enabled: true
+    auth:
+      existingSecret: keycloak-postgres-credentials
+      secretKeys:
+        adminPasswordKey: postgres-password
+        userPasswordKey: password
+    primary:
+      persistence:
+        enabled: true
+        size: 20Gi
+        storageClass: gp3
+  
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hostname: keycloak.example.com  # TODO: Update for production
+    tls: true
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    extraTls:
+      - hosts:
+          - keycloak.example.com
+        secretName: keycloak-tls
+  
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+
+externalSecrets:
+  enabled: true
+  refreshInterval: "10m"
+  adminCredentials:
+    remoteRef: "production/keycloak/admin"
+  postgresCredentials:
+    remoteRef: "production/keycloak/postgres"
+  clientSecrets:
+    remoteRef: "production/keycloak/clients"

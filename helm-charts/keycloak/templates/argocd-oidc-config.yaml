@@ -1,0 +1,67 @@
+{{- if .Values.argocd.oidc.enabled }}
+# ==============================================================================
+# ArgoCD OIDC ConfigMap Patch
+# ==============================================================================
+# This ConfigMap patches the argocd-cm to enable Keycloak SSO
+# Apply after Keycloak is deployed and configured
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm-oidc-patch
+  namespace: argocd
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+data:
+  # This is a reference patch - apply to argocd-cm ConfigMap
+  # argocd-cm patch content:
+  oidc.config: |
+    name: Keycloak
+    issuer: {{ .Values.argocd.oidc.issuer }}
+    clientID: {{ .Values.argocd.oidc.clientId }}
+    clientSecret: $oidc.keycloak.clientSecret
+    requestedScopes:
+      - openid
+      - profile
+      - email
+      - groups
+    requestedIDTokenClaims:
+      groups:
+        essential: true
+---
+# ==============================================================================
+# ArgoCD RBAC ConfigMap Patch
+# ==============================================================================
+# Maps Keycloak groups to ArgoCD roles
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm-patch
+  namespace: argocd
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+data:
+  # Reference RBAC policy - apply to argocd-rbac-cm ConfigMap
+  policy.csv: |
+    # Keycloak group mappings
+    g, /platform-admins, role:admin
+    g, /developers, role:readonly
+    
+    # Custom policies (optional)
+    p, role:developer, applications, sync, */*, allow
+    p, role:developer, applications, get, */*, allow
+    p, role:developer, logs, get, */*, allow
+    g, /developers, role:developer
+  
+  policy.default: role:readonly
+  scopes: '[groups]'
+{{- end }}

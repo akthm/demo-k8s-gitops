@@ -28,6 +28,24 @@ kubePrometheusStack:
         label: grafana_dashboard
         labelValue: "1"
         searchNamespace: ALL  # Discover dashboards in all namespaces
+    
+    # ==============================================================================
+    # Keycloak OAuth2/OIDC Configuration for Staging
+    # ==============================================================================
+    # TODO: Enable after Keycloak deployment and client creation
+    # ==============================================================================
+    auth:
+      enabled: false  # TODO: Set to true after Keycloak setup
+      keycloak:
+        enabled: false  # TODO: Set to true after Keycloak setup
+        authUrl: "http://keycloak.keycloak.svc.cluster.local/realms/platform/protocol/openid-connect/auth"
+        tokenUrl: "http://keycloak.keycloak.svc.cluster.local/realms/platform/protocol/openid-connect/token"
+        apiUrl: "http://keycloak.keycloak.svc.cluster.local/realms/platform/protocol/openid-connect/userinfo"
+        clientId: "grafana"
+        # clientSecret loaded from ExternalSecret: keycloak-client-secrets (key: grafana-secret)
+        scopes: "openid profile email groups"
+        roleAttributePath: "contains(groups[*], '/grafana-admins') && 'Admin' || contains(groups[*], '/grafana-editors') && 'Editor' || 'Viewer'"
+        allowSignUp: true
 
 # Enable External Secrets Operator monitoring in staging
 externalSecretsOperator:

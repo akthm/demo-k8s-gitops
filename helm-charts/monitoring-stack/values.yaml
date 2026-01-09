@@ -55,6 +55,29 @@ kubePrometheusStack:
         labelValue: "1"
         searchNamespace: ALL
     
+    # ==============================================================================
+    # Keycloak OAuth2/OIDC Configuration
+    # ==============================================================================
+    # Enable per environment in values.stage.yaml / values.prod.yaml
+    # Requires Keycloak "grafana" client (confidential)
+    # ==============================================================================
+    auth:
+      enabled: false  # Enable when Keycloak is deployed
+      keycloak:
+        enabled: false
+        # Keycloak realm URL
+        authUrl: "http://keycloak.keycloak.svc.cluster.local/realms/platform/protocol/openid-connect/auth"
+        tokenUrl: "http://keycloak.keycloak.svc.cluster.local/realms/platform/protocol/openid-connect/token"
+        apiUrl: "http://keycloak.keycloak.svc.cluster.local/realms/platform/protocol/openid-connect/userinfo"
+        # Client credentials (from ExternalSecret)
+        clientId: "grafana"
+        # Scopes
+        scopes: "openid profile email groups"
+        # Role mapping
+        roleAttributePath: "contains(groups[*], '/grafana-admins') && 'Admin' || contains(groups[*], '/grafana-editors') && 'Editor' || 'Viewer'"
+        # Allow users to sign up
+        allowSignUp: true
+    
     datasources:
       # Prometheus datasource (auto-configured by kube-prometheus-stack)
       # Loki datasource (configured when loki enabled)

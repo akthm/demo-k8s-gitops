@@ -228,10 +228,12 @@ externalSecrets:
   #   flaskAppKey: Contains SECRET_KEY and other Flask secrets
   #   adminKey: Contains INITIAL_ADMIN_USER (JSON with username/password/email)
   #   jwtKeysKey: Contains JWT_PRIVATE_KEY and JWT_PUBLIC_KEY (RSA keys)
+  #   oidcKey: Contains OIDC_CLIENT_ID, OIDC_CLIENT_SECRET for Keycloak
   databaseKey: "staging/backend/database"
   flaskAppKey: "staging/backend/flask-app"
   adminKey: "staging/backend/admin"
   jwtKeysKey: "staging/backend/jwt-keys"
+  oidcKey: "staging/backend/oidc"
 
 gitops:
   argo:
@@ -320,3 +322,36 @@ secrets:
   # DB credentials are provided by ExternalSecrets
   # Additional secrets can be added here
   API_TEST_KEY: ""
+
+# ==============================================================================
+# OIDC/Keycloak Configuration
+# ==============================================================================
+# Integrates with Keycloak for OAuth2/OIDC authentication
+# Requires: authlib Python library in Flask application
+# ==============================================================================
+oidc:
+  enabled: false  # Enable per environment (staging/prod)
+  
+  # Keycloak realm and endpoints
+  issuer: "http://keycloak.keycloak.svc.cluster.local/realms/platform"
+  
+  # Client configuration (secrets from ExternalSecret)
+  clientId: "flask-backend"  # Confidential client in Keycloak
+  
+  # Scopes to request
+  scopes: "openid profile email groups"
+  
+  # Token validation settings
+  audience: "flask-backend"
+  algorithms: ["RS256"]
+  
+  # Group claim for RBAC mapping
+  groupsClaim: "groups"
+  
+  # Role mappings (Keycloak groups -> Flask roles)
+  roleMapping:
+    "/platform-admins": "admin"
+    "/developers": "developer"
+    
+  # Secret containing OIDC_CLIENT_ID and OIDC_CLIENT_SECRET
+  existingSecret: ""  # Auto-generated: flask-app-oidc

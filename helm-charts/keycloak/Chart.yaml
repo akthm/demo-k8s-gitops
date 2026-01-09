@@ -1,0 +1,22 @@
+# ==============================================================================
+# Keycloak Identity Provider Helm Chart
+# ==============================================================================
+# Central SSO provider for all platform components:
+# - Flask backend (OIDC bearer token validation)
+# - React frontend (OIDC authorization code flow with PKCE)
+# - ArgoCD (OIDC SSO)
+# - Grafana (Generic OAuth)
+# ==============================================================================
+
+apiVersion: v2
+name: keycloak
+description: Keycloak Identity Provider for Platform SSO
+type: application
+version: 1.0.0
+appVersion: "24.0.0"
+
+dependencies:
+  - name: keycloak
+    version: "21.4.4"  # Bitnami Keycloak chart version
+    repository: "oci://registry-1.docker.io/bitnamicharts"
+    condition: keycloak.enabled

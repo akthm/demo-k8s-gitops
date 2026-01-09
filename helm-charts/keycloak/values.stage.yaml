@@ -1,0 +1,57 @@
+# ==============================================================================
+# Keycloak SSO - Staging Environment
+# ==============================================================================
+
+keycloak:
+  production: false
+  replicaCount: 1
+  
+  # Use External Secrets for credentials
+  auth:
+    adminUser: admin
+    existingSecret: keycloak-admin-credentials
+    passwordSecretKey: admin-password
+  
+  postgresql:
+    enabled: true
+    auth:
+      existingSecret: keycloak-postgres-credentials
+      secretKeys:
+        adminPasswordKey: postgres-password
+        userPasswordKey: password
+    primary:
+      persistence:
+        enabled: true
+        size: 8Gi
+  
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hostname: keycloak.staging.local  # TODO: Update for your environment
+    tls: false  # TODO: Enable with cert-manager
+  
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1500m
+      memory: 2Gi
+
+# Enable External Secrets
+externalSecrets:
+  enabled: true
+  refreshInterval: "5m"
+  adminCredentials:
+    remoteRef: "staging/keycloak/admin"
+  postgresCredentials:
+    remoteRef: "staging/keycloak/postgres"
+  clientSecrets:
+    remoteRef: "staging/keycloak/clients"
+
+# ArgoCD OIDC - Enable after Keycloak realm setup
+argocd:
+  oidc:
+    enabled: false  # TODO: Set to true after creating argocd client in Keycloak
+    issuer: "http://keycloak.keycloak.svc.cluster.local/realms/platform"
+    clientId: "argocd"
