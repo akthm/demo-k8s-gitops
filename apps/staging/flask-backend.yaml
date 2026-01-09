@@ -30,3 +30,16 @@ spec:
       - ApplyOutOfSyncOnly=true
       # Optional:
       # - PruneLast=true
+  
+  # Ignore differences that don't represent actual drift
+  ignoreDifferences:
+    # Ignore ExternalSecret status changes (refreshTime, conditions, etc.)
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /status
+    # Ignore Secret data changes (managed by ExternalSecrets Operator)
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
