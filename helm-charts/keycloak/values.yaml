@@ -109,9 +109,8 @@ keycloak:
   # ------------------------------------------------------------------------------
   # Extra Environment Variables
   # ------------------------------------------------------------------------------
-  extraEnvVars:
-    - name: KEYCLOAK_EXTRA_ARGS
-      value: "--features=token-exchange,admin-fine-grained-authz"
+  # Note: Define extraEnvVars in environment-specific files (values.stage.yaml)
+  # to avoid overriding. Helm does not merge array values.
 
 # ------------------------------------------------------------------------------
 # External Secrets Configuration

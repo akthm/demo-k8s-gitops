@@ -13,6 +13,8 @@ keycloak:
   # Inject admin credentials from secret via extraEnvVars
   # Bitnami Keycloak expects KC_BOOTSTRAP_ADMIN_* variables
   extraEnvVars:
+    - name: KEYCLOAK_EXTRA_ARGS
+      value: "--features=token-exchange,admin-fine-grained-authz"
     - name: KC_BOOTSTRAP_ADMIN_USERNAME
       valueFrom:
         secretKeyRef:
