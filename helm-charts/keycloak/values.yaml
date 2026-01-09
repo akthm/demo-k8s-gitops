@@ -37,7 +37,9 @@ keycloak:
   auth:
     adminUser: admin
     adminPassword: "admin"  # Override with existingSecret in staging/prod
-    # Note: When using existingSecret, also set extraEnvVars to inject KEYCLOAK_ADMIN_USER
+    # Note: When using existingSecret, also set extraEnvVars to inject
+    # KC_BOOTSTRAP_ADMIN_USERNAME and KC_BOOTSTRAP_ADMIN_PASSWORD
+    # (Bitnami container expects KC_BOOTSTRAP_* variables)
   
   keycloakConfigCli:
     enabled: true

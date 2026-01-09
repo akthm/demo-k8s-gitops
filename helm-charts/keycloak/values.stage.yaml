@@ -11,13 +11,19 @@ keycloak:
     existingSecret: keycloak-admin-credentials
     passwordSecretKey: admin-password
   
-  # Inject admin username from secret via extraEnvVars
+  # Inject admin credentials from secret via extraEnvVars
+  # Bitnami Keycloak expects KC_BOOTSTRAP_ADMIN_* variables
   extraEnvVars:
-    - name: KEYCLOAK_ADMIN_USER
+    - name: KC_BOOTSTRAP_ADMIN_USERNAME
       valueFrom:
         secretKeyRef:
           name: keycloak-admin-credentials
           key: admin-user
+    - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-admin-credentials
+          key: admin-password
   
   postgresql:
     enabled: true
