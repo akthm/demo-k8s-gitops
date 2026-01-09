@@ -1,0 +1,310 @@
+# ==============================================================================
+# Keycloak Platform Realm Configuration
+# ==============================================================================
+# This JSON configures the 'platform' realm with all OIDC clients for SSO
+# Deploy with keycloakConfigCli to auto-provision on ArgoCD sync
+# ==============================================================================
+{
+  "realm": "platform",
+  "enabled": true,
+  "displayName": "Platform SSO",
+  "displayNameHtml": "<b>Platform</b> Single Sign-On",
+  "loginTheme": "keycloak",
+  "accountTheme": "keycloak.v2",
+  "adminTheme": "keycloak.v2",
+  "emailTheme": "keycloak",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "defaultSignatureAlgorithm": "RS256",
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Platform Administrator"
+      },
+      {
+        "name": "developer",
+        "description": "Developer with deployment access"
+      },
+      {
+        "name": "viewer",
+        "description": "Read-only access"
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "platform-admins",
+      "path": "/platform-admins",
+      "realmRoles": ["admin"]
+    },
+    {
+      "name": "developers",
+      "path": "/developers",
+      "realmRoles": ["developer"]
+    },
+    {
+      "name": "grafana-admins",
+      "path": "/grafana-admins"
+    },
+    {
+      "name": "grafana-editors",
+      "path": "/grafana-editors"
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "acr",
+    "email",
+    "profile",
+    "roles",
+    "web-origins"
+  ],
+  "defaultOptionalClientScopes": [
+    "address",
+    "microprofile-jwt",
+    "offline_access",
+    "phone"
+  ],
+  "clientScopes": [
+    {
+      "name": "groups",
+      "description": "Group membership",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Group membership"
+      },
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "argocd",
+      "name": "ArgoCD GitOps",
+      "description": "ArgoCD OIDC SSO Client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "rootUrl": "${ARGOCD_ROOT_URL}",
+      "baseUrl": "/argo",
+      "redirectUris": [
+        "${ARGOCD_ROOT_URL}/auth/callback",
+        "${ARGOCD_ROOT_URL}/argo/auth/callback",
+        "https://platform.staging.local/argo/auth/callback",
+        "http://localhost:8080/auth/callback"
+      ],
+      "webOrigins": [
+        "${ARGOCD_ROOT_URL}",
+        "https://platform.staging.local",
+        "http://localhost:8080"
+      ],
+      "defaultClientScopes": [
+        "acr",
+        "email",
+        "profile",
+        "roles",
+        "web-origins",
+        "groups"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "microprofile-jwt",
+        "offline_access",
+        "phone"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${ARGOCD_ROOT_URL}/*##https://platform.staging.local/argo/*"
+      }
+    },
+    {
+      "clientId": "grafana",
+      "name": "Grafana Dashboard",
+      "description": "Grafana OIDC SSO Client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "rootUrl": "${GRAFANA_ROOT_URL}",
+      "baseUrl": "/grafana",
+      "redirectUris": [
+        "${GRAFANA_ROOT_URL}/login/generic_oauth",
+        "${GRAFANA_ROOT_URL}/grafana/login/generic_oauth",
+        "https://platform.staging.local/grafana/login/generic_oauth",
+        "http://localhost:3000/login/generic_oauth"
+      ],
+      "webOrigins": [
+        "${GRAFANA_ROOT_URL}",
+        "https://platform.staging.local",
+        "http://localhost:3000"
+      ],
+      "defaultClientScopes": [
+        "acr",
+        "email",
+        "profile",
+        "roles",
+        "web-origins",
+        "groups"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "microprofile-jwt",
+        "offline_access",
+        "phone"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${GRAFANA_ROOT_URL}/*##https://platform.staging.local/grafana/*"
+      }
+    },
+    {
+      "clientId": "flask-backend",
+      "name": "Flask Backend API",
+      "description": "Flask backend service account for API validation",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "defaultClientScopes": [
+        "acr",
+        "email",
+        "profile",
+        "roles",
+        "web-origins"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "microprofile-jwt",
+        "offline_access",
+        "phone"
+      ]
+    },
+    {
+      "clientId": "react-frontend",
+      "name": "React Frontend SPA",
+      "description": "React SPA public client with PKCE",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "rootUrl": "${REACT_ROOT_URL}",
+      "baseUrl": "/",
+      "redirectUris": [
+        "${REACT_ROOT_URL}/*",
+        "https://platform.staging.local/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "${REACT_ROOT_URL}",
+        "https://platform.staging.local",
+        "http://localhost:3000"
+      ],
+      "defaultClientScopes": [
+        "acr",
+        "email",
+        "profile",
+        "roles",
+        "web-origins",
+        "groups"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "microprofile-jwt",
+        "offline_access",
+        "phone"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${REACT_ROOT_URL}/*##https://platform.staging.local/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@platform.local",
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["admin"],
+      "groups": ["/platform-admins", "/grafana-admins"]
+    },
+    {
+      "username": "developer",
+      "enabled": true,
+      "email": "developer@platform.local",
+      "firstName": "Platform",
+      "lastName": "Developer",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "developer",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["developer"],
+      "groups": ["/developers", "/grafana-editors"]
+    }
+  ]
+}

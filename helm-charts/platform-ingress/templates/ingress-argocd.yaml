@@ -1,0 +1,57 @@
+# ==============================================================================
+# Platform Ingress - ArgoCD
+# ==============================================================================
+{{- if .Values.argocd.enabled }}
+# ExternalName service to reference cross-namespace service
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server-external
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  type: ExternalName
+  externalName: {{ .Values.argocd.serviceName }}.{{ .Values.argocd.serviceNamespace }}.svc.cluster.local
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "platform-ingress.fullname" . }}-argocd
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+    app.kubernetes.io/component: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.argocd.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    # Rewrite path: /argo/foo -> /foo
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.domain }}
+      secretName: {{ .Values.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.domain }}
+      http:
+        paths:
+          - path: /argo(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: argocd-server-external
+                port:
+                  number: {{ .Values.argocd.servicePort }}
+{{- end }}

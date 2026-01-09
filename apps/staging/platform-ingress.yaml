@@ -1,0 +1,64 @@
+# ==============================================================================
+# ArgoCD Application - Platform Ingress
+# ==============================================================================
+# Unified path-based ingress for all platform services:
+#   - /keycloak  -> Keycloak Identity Provider
+#   - /argo      -> ArgoCD GitOps Dashboard  
+#   - /grafana   -> Grafana Observability Dashboard
+#   - /prometheus -> Prometheus Metrics (basic auth)
+# 
+# Sync Wave: 2 (deploys after all services are up)
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: main
+    path: helm-charts/platform-ingress
+    helm:
+      releaseName: platform-ingress
+      valueFiles:
+        - values.yaml
+        - values.stage.yaml
+      # Skip cert-manager dependency - assume already installed
+      skipCrds: true
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform-ingress
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  ignoreDifferences:
+    # Ignore cert-manager managed fields
+    - group: cert-manager.io
+      kind: Certificate
+      jsonPointers:
+        - /status
+    # Ignore ingress status
+    - group: networking.k8s.io
+      kind: Ingress
+      jsonPointers:
+        - /status

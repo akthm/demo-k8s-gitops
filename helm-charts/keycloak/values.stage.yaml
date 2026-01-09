@@ -6,8 +6,31 @@ keycloak:
   production: false
   replicaCount: 1
   
+  # Use local cache for single replica deployment
+  cache:
+    enabled: true
+    stackName: ""  # Empty to use default (local for single replica)
+    stackFile: ""
+  
+  # ==============================================================================
+  # Keycloak Config CLI - Auto-provision realm and clients
+  # ==============================================================================
+  keycloakConfigCli:
+    enabled: true
+    # Use the realm ConfigMap created by our template
+    existingConfigmap: "keycloak-realm-config"
+    extraEnvVars:
+      # Platform URLs for client redirect URIs (substituted in realm JSON)
+      - name: ARGOCD_ROOT_URL
+        value: "https://platform.staging.local"
+      - name: GRAFANA_ROOT_URL
+        value: "https://platform.staging.local"
+      - name: REACT_ROOT_URL
+        value: "https://platform.staging.local"
+  
   # Use External Secrets for credentials
   auth:
+    adminUser: ""  # Unset - using KC_BOOTSTRAP_ADMIN_USERNAME instead
     existingSecret: keycloak-admin-credentials
     passwordSecretKey: admin-password
   
@@ -15,7 +38,7 @@ keycloak:
   # Bitnami Keycloak expects KC_BOOTSTRAP_ADMIN_* variables
   extraEnvVars:
     - name: KEYCLOAK_EXTRA_ARGS
-      value: "--features=token-exchange,admin-fine-grained-authz"
+      value: "--features=token-exchange"
     - name: KC_BOOTSTRAP_ADMIN_USERNAME
       valueFrom:
         secretKeyRef:
@@ -39,11 +62,13 @@ keycloak:
         enabled: true
         size: 8Gi
   
+  # Disable standalone ingress - using platform-ingress instead
   ingress:
-    enabled: true
-    ingressClassName: nginx
-    hostname: keycloak.staging.local  # TODO: Update for your environment
-    tls: false  # TODO: Enable with cert-manager
+    enabled: false
+  
+  # HTTP settings for reverse proxy
+  httpRelativePath: /keycloak/
+  proxy: edge
   
   resources:
     requests:
@@ -52,6 +77,12 @@ keycloak:
     limits:
       cpu: 1500m
       memory: 2Gi
+
+# ==============================================================================
+# keycloakConfigCli - Auto-provision realm
+# ==============================================================================
+keycloakConfigCli:
+  enabled: true
 
 # Enable External Secrets
 externalSecrets:
@@ -64,9 +95,9 @@ externalSecrets:
   clientSecrets:
     remoteRef: "staging/keycloak/clients"
 
-# ArgoCD OIDC - Enable after Keycloak realm setup
+# ArgoCD OIDC Configuration
 argocd:
   oidc:
-    enabled: false  # TODO: Set to true after creating argocd client in Keycloak
-    issuer: "http://keycloak.keycloak.svc.cluster.local/realms/platform"
+    enabled: true
+    issuer: "https://platform.staging.local/keycloak/realms/platform"
     clientId: "argocd"

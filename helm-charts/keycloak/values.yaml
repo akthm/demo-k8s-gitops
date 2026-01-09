@@ -42,7 +42,7 @@ keycloak:
     # (Bitnami container expects KC_BOOTSTRAP_* variables)
   
   keycloakConfigCli:
-    enabled: true
+    enabled: false  # Disabled - configure Keycloak manually via Admin UI
     image:
       registry: docker.io
       repository: bitnamilegacy/keycloak-config-cli

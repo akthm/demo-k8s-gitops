@@ -1,0 +1,19 @@
+# ==============================================================================
+# Platform Ingress - Unified Path-Based Routing
+# ==============================================================================
+# Provides single-domain ingress with path-based routing:
+#   /keycloak  -> Keycloak Identity Provider
+#   /argo      -> ArgoCD GitOps Dashboard
+#   /grafana   -> Grafana Observability Dashboard
+#   /prometheus -> Prometheus Metrics (basic auth)
+# ==============================================================================
+
+apiVersion: v2
+name: platform-ingress
+description: Unified path-based ingress for platform services with TLS
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+# Note: cert-manager should be installed separately before deploying this chart
+# Install with: kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml

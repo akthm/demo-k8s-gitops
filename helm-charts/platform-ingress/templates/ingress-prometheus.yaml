@@ -1,0 +1,63 @@
+# ==============================================================================
+# Platform Ingress - Prometheus (with Basic Auth)
+# ==============================================================================
+{{- if .Values.prometheus.enabled }}
+# ExternalName service to reference cross-namespace service
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-external
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  type: ExternalName
+  externalName: {{ .Values.prometheus.serviceName }}.{{ .Values.prometheus.serviceNamespace }}.svc.cluster.local
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "platform-ingress.fullname" . }}-prometheus
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.prometheus.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    # Rewrite path: /prometheus/foo -> /foo
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    {{- if .Values.prometheus.basicAuth.enabled }}
+    # Basic auth annotations
+    nginx.ingress.kubernetes.io/auth-type: "basic"
+    nginx.ingress.kubernetes.io/auth-secret: "{{ .Values.prometheus.basicAuth.secretName }}"
+    nginx.ingress.kubernetes.io/auth-realm: "Prometheus - Authentication Required"
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.domain }}
+      secretName: {{ .Values.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.domain }}
+      http:
+        paths:
+          - path: /prometheus(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: prometheus-external
+                port:
+                  number: {{ .Values.prometheus.servicePort }}
+{{- end }}

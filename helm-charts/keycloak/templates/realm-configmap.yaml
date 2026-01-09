@@ -1,0 +1,20 @@
+{{- if .Values.keycloakConfigCli.enabled }}
+# ==============================================================================
+# Keycloak Realm ConfigMap
+# ==============================================================================
+# Platform realm configuration for keycloak-config-cli
+# This will auto-provision the realm with all OIDC clients
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  platform-realm.json: |
+{{ .Files.Get "realm-config/platform-realm.json" | indent 4 }}
+{{- end }}

@@ -1,0 +1,55 @@
+# ==============================================================================
+# Platform Ingress - Staging Environment
+# ==============================================================================
+
+domain: platform.staging.local
+
+tls:
+  enabled: true
+  secretName: platform-staging-tls
+
+certManager:
+  enabled: true
+  selfSigned:
+    enabled: true
+    issuerName: selfsigned-issuer
+  caIssuer:
+    enabled: true
+    issuerName: platform-ca-issuer
+    secretName: platform-ca-secret
+
+# Service configurations for staging
+keycloak:
+  enabled: true
+  path: /keycloak
+  serviceName: keycloak
+  serviceNamespace: keycloak
+  servicePort: 80
+
+argocd:
+  enabled: true
+  path: /argo
+  serviceName: argocd-server
+  serviceNamespace: argocd
+  servicePort: 443
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+
+grafana:
+  enabled: true
+  path: /grafana
+  serviceName: kube-prometheus-stack-grafana
+  serviceNamespace: monitoring
+  servicePort: 80
+
+prometheus:
+  enabled: true
+  path: /prometheus
+  serviceName: kube-prometheus-stack-prometheus
+  serviceNamespace: monitoring
+  servicePort: 9090
+  basicAuth:
+    enabled: true
+    secretName: prometheus-basic-auth
+    username: admin
+    password: ""  # Will be auto-generated

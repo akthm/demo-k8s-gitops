@@ -1,0 +1,97 @@
+{{- if .Values.certManager.enabled }}
+{{- if .Values.certManager.selfSigned.enabled }}
+# ==============================================================================
+# Self-Signed ClusterIssuer
+# ==============================================================================
+# Creates a self-signed issuer used to bootstrap the CA
+# ==============================================================================
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.certManager.selfSigned.issuerName }}
+  labels:
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  selfSigned: {}
+---
+# ==============================================================================
+# CA Certificate
+# ==============================================================================
+# Self-signed CA certificate for the platform
+# Must be in cert-manager namespace for ClusterIssuer to access
+# ==============================================================================
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: platform-ca
+  namespace: cert-manager
+  labels:
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  isCA: true
+  commonName: "Platform CA"
+  secretName: {{ .Values.certManager.caIssuer.secretName }}
+  duration: 87600h # 10 years
+  renewBefore: 720h # 30 days
+  privateKey:
+    algorithm: RSA
+    size: 4096
+  issuerRef:
+    name: {{ .Values.certManager.selfSigned.issuerName }}
+    kind: ClusterIssuer
+    group: cert-manager.io
+{{- end }}
+{{- if .Values.certManager.caIssuer.enabled }}
+---
+# ==============================================================================
+# CA ClusterIssuer
+# ==============================================================================
+# Issues certificates signed by our platform CA
+# ==============================================================================
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.certManager.caIssuer.issuerName }}
+  labels:
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  ca:
+    secretName: {{ .Values.certManager.caIssuer.secretName }}
+{{- end }}
+---
+# ==============================================================================
+# Platform TLS Certificate
+# ==============================================================================
+# Certificate for the platform domain
+# ==============================================================================
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "platform-ingress.fullname" . }}-cert
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  secretName: {{ .Values.tls.secretName }}
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+  commonName: {{ .Values.domain }}
+  dnsNames:
+    - {{ .Values.domain }}
+    - "*.{{ .Values.domain }}"
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: {{ .Values.certManager.caIssuer.issuerName }}
+    kind: ClusterIssuer
+    group: cert-manager.io
+{{- end }}
