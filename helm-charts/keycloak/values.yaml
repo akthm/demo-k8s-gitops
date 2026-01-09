@@ -9,15 +9,17 @@
 # ==============================================================================
 
 # Important: after bitnami update use legacy image registry
-image:
-  registry: docker.io
-  repository: bitnamilegacy/keycloak
-  tag: 26.3.3-debian-12-r0
+
 
 # Enable/disable Keycloak deployment
 keycloak:
   enabled: true
-  
+  # ------------------------------------------------------------------------------
+  # Docker Image Configuration use legacy registry
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/keycloak
+    tag: 26.3.3-debian-12-r0
   # ------------------------------------------------------------------------------
   # Production Mode
   # ------------------------------------------------------------------------------
@@ -36,11 +38,21 @@ keycloak:
     adminUser: admin
     adminPassword: "admin"  # Override with existingSecret in staging/prod
   
+  keycloakConfigCli:
+    enabled: true
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/keycloak-config-cli
+      tag: 6.4.0-debian-12-r11
   # ------------------------------------------------------------------------------
   # Database Configuration
   # ------------------------------------------------------------------------------
   postgresql:
     enabled: true
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/postgresql
+      tag: 17.6.0-debian-12-r4
     auth:
       postgresPassword: "postgres"
       password: "keycloak"
