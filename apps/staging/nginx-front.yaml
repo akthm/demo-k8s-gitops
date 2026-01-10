@@ -16,8 +16,6 @@ spec:
       valueFiles:
         - values.yaml
       parameters:
-        - name: image.tag
-          value: "1.0.3" # Hardcoded for staging
         - name: backend.serviceHost
           value: "flask-app.backend.svc.cluster.local"
 

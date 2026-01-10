@@ -21,8 +21,6 @@ spec:
       valueFiles:
         - values.yaml
       parameters:
-        - name: image.tag
-          value: "latest"
         - name: backend.serviceHost
           value: "flask-app.backend.svc.cluster.local"
 
