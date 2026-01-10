@@ -57,7 +57,7 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                name: prometheus-external
+                name: {{ .Values.prometheus.serviceName }}
                 port:
                   number: {{ .Values.prometheus.servicePort }}
 {{- end }}

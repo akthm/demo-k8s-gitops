@@ -51,7 +51,7 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                name: grafana-external
+                name: {{ .Values.grafana.serviceName }}
                 port:
                   number: {{ .Values.grafana.servicePort }}
 {{- end }}

@@ -1,9 +1,3 @@
-# ==============================================================================
-# Keycloak Platform Realm Configuration
-# ==============================================================================
-# This JSON configures the 'platform' realm with all OIDC clients for SSO
-# Deploy with keycloakConfigCli to auto-provision on ArgoCD sync
-# ==============================================================================
 {
   "realm": "platform",
   "enabled": true,

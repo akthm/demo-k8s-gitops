@@ -51,7 +51,7 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                name: keycloak-external
+                name: {{ .Values.keycloak.serviceName }}
                 port:
                   number: {{ .Values.keycloak.servicePort }}
 {{- end }}

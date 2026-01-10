@@ -51,7 +51,7 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                name: argocd-server-external
+                name: {{ .Values.argocd.serviceName }}
                 port:
                   number: {{ .Values.argocd.servicePort }}
 {{- end }}
