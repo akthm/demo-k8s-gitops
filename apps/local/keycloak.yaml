@@ -1,0 +1,56 @@
+# ==============================================================================
+# ArgoCD Application - Keycloak Identity Provider (Local)
+# ==============================================================================
+# Reuses staging values - ESO + LocalStack provides secrets via Terragrunt
+# Sync Wave: -3 (deploys before monitoring-stack at -2)
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: main
+    path: helm-charts/keycloak
+    helm:
+      releaseName: keycloak
+      valueFiles:
+        - values.yaml
+        - values.stage.yaml   # Staging values work for local
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keycloak
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /status
+        - /data

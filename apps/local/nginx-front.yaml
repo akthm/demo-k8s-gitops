@@ -1,0 +1,39 @@
+# ==============================================================================
+# ArgoCD Application - Nginx Frontend (Local)
+# ==============================================================================
+# Sync Wave: 1 (deploys after flask-backend)
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-frontend
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: main
+    path: helm-charts/nginx-front
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: image.tag
+          value: "latest"
+        - name: backend.serviceHost
+          value: "flask-app.backend.svc.cluster.local"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: frontend
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

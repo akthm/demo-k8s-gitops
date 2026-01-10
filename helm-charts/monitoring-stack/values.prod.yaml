@@ -50,6 +50,32 @@ kubePrometheusStack:
         label: grafana_dashboard
         labelValue: "1"
         searchNamespace: ALL
+    
+    # Grafana server configuration for production
+    grafana.ini:
+      server:
+        domain: platform.example.com
+        root_url: "https://platform.example.com/grafana"
+        serve_from_sub_path: true
+      # ==============================================================================
+      # Keycloak OAuth Configuration (Production)
+      # ==============================================================================
+      auth.generic_oauth:
+        enabled: true
+        name: "Keycloak"
+        allow_sign_up: true
+        client_id: "grafana"
+        scopes: "openid profile email groups"
+        auth_url: "https://platform.example.com/keycloak/realms/platform/protocol/openid-connect/auth"
+        token_url: "https://platform.example.com/keycloak/realms/platform/protocol/openid-connect/token"
+        api_url: "https://platform.example.com/keycloak/realms/platform/protocol/openid-connect/userinfo"
+        role_attribute_path: "contains(groups[*], '/grafana-admins') && 'Admin' || contains(groups[*], '/grafana-editors') && 'Editor' || 'Viewer'"
+        role_attribute_strict: false
+        groups_attribute_path: "groups"
+        use_pkce: true
+    
+    # Load client secret from environment
+    envFromSecret: grafana-oauth-secret
 
 # Enable External Secrets Operator monitoring in production
 externalSecretsOperator:

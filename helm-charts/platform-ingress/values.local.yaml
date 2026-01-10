@@ -1,0 +1,42 @@
+# ==============================================================================
+# Platform Ingress - Local Environment (Kind Cluster with nip.io)
+# ==============================================================================
+# Local development uses nip.io for automatic DNS resolution without /etc/hosts.
+#
+# nip.io Strategy:
+#   - MetalLB assigns LoadBalancer IP (e.g., 172.18.255.200)
+#   - Domain becomes: platform.172.18.255.200.nip.io
+#   - nip.io DNS resolves *.IP.nip.io → IP automatically
+#
+# Access URLs (example with IP 172.18.255.200):
+#   - Keycloak:   http://platform.172.18.255.200.nip.io/keycloak
+#   - ArgoCD:     http://platform.172.18.255.200.nip.io/argo
+#   - Grafana:    http://platform.172.18.255.200.nip.io/grafana
+#   - Prometheus: http://platform.172.18.255.200.nip.io/prometheus
+#
+# Fallback (without MetalLB):
+#   kubectl port-forward -n platform-ingress svc/platform-ingress 8080:80
+#   Access: http://localhost:8080/keycloak
+# ==============================================================================
+
+# Domain for nip.io - UPDATE with actual MetalLB IP after deployment
+# Run: kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+# Then update this to: platform.<IP>.nip.io
+domain: platform.127.0.0.1.nip.io
+
+# Disable TLS for local development (HTTP only)
+tls:
+  enabled: false
+
+# Disable cert-manager locally - no certificates needed for HTTP
+certManager:
+  enabled: false
+  selfSigned:
+    enabled: false
+  caIssuer:
+    enabled: false
+
+# Disable Prometheus basic auth for easier local debugging
+prometheus:
+  basicAuth:
+    enabled: false

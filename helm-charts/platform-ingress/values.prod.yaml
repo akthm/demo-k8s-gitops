@@ -1,0 +1,74 @@
+# ==============================================================================
+# Platform Ingress - Production Environment (AWS EKS)
+# ==============================================================================
+# Production configuration:
+#   - Real domain via Route53
+#   - Let's Encrypt TLS certificates
+#   - nginx-ingress-controller creates AWS NLB
+# ==============================================================================
+
+# Production domain - UPDATE THIS before deployment
+domain: platform.example.com
+
+tls:
+  enabled: true
+  secretName: platform-prod-tls
+
+# Use Let's Encrypt for production certificates
+certManager:
+  enabled: true
+  selfSigned:
+    enabled: false  # Don't use self-signed in production
+  # Use Let's Encrypt ClusterIssuer
+  clusterIssuer:
+    enabled: true
+    name: letsencrypt-prod
+  caIssuer:
+    enabled: false
+
+# Production ingress annotations
+ingress:
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+    # Rate limiting for production
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+
+# Service configurations for production
+keycloak:
+  enabled: true
+  path: /keycloak
+  serviceName: keycloak
+  serviceNamespace: keycloak
+  servicePort: 80
+
+argocd:
+  enabled: true
+  path: /argo
+  serviceName: argocd-server
+  serviceNamespace: argocd
+  servicePort: 443
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+
+grafana:
+  enabled: true
+  path: /grafana
+  serviceName: kube-prometheus-stack-grafana
+  serviceNamespace: monitoring
+  servicePort: 80
+
+prometheus:
+  enabled: true
+  path: /prometheus
+  serviceName: kube-prometheus-stack-prometheus
+  serviceNamespace: monitoring
+  servicePort: 9090
+  basicAuth:
+    enabled: true
+    secretName: prometheus-basic-auth
+    username: admin
+    password: ""  # Use external secret in production

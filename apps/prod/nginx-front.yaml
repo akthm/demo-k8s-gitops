@@ -1,0 +1,45 @@
+# ==============================================================================
+# ArgoCD Application - Nginx Frontend (Production)
+# ==============================================================================
+# Production EKS configuration:
+#   - 3 replicas (HA)
+#   - Stable image tag
+#
+# Sync Wave: 1 (deploys after flask-backend)
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-frontend
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: main
+    path: helm-charts/nginx-front
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: image.tag
+          value: "stable-1"
+        - name: backend.serviceHost
+          value: "flask-app.backend.svc.cluster.local"
+        - name: replicaCount
+          value: "3"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: frontend
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

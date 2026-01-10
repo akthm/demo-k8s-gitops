@@ -1,0 +1,46 @@
+# ==============================================================================
+# ArgoCD Application - Flask Backend (Local)
+# ==============================================================================
+# Reuses staging values - ESO + LocalStack provides secrets via Terragrunt
+# Sync Wave: 0
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: flask-app
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: main
+    path: helm-charts/flask-app
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.stage.yaml   # Staging values work for local
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: backend
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+  
+  ignoreDifferences:
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /status
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
