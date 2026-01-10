@@ -1,28 +1,28 @@
 # ==============================================================================
-# Platform Ingress - Local Environment (Kind Cluster with nip.io)
+# Platform Ingress - Local Environment (Subdomain Strategy with nip.io)
 # ==============================================================================
-# Local development uses nip.io for automatic DNS resolution without /etc/hosts.
+# Local development uses nip.io for automatic wildcard DNS resolution.
 #
-# nip.io Strategy:
+# nip.io Subdomain Strategy:
 #   - MetalLB assigns LoadBalancer IP (e.g., 172.18.255.200)
-#   - Domain becomes: platform.172.18.255.200.nip.io
-#   - nip.io DNS resolves *.IP.nip.io → IP automatically
+#   - Base domain becomes: 172.18.255.200.nip.io
+#   - nip.io automatically resolves *.IP.nip.io → IP
 #
 # Access URLs (example with IP 172.18.255.200):
-#   - Keycloak:   http://platform.172.18.255.200.nip.io/keycloak
-#   - ArgoCD:     http://platform.172.18.255.200.nip.io/argo
-#   - Grafana:    http://platform.172.18.255.200.nip.io/grafana
-#   - Prometheus: http://platform.172.18.255.200.nip.io/prometheus
+#   - Keycloak:   http://keycloak.172.18.255.200.nip.io
+#   - ArgoCD:     http://argocd.172.18.255.200.nip.io
+#   - Grafana:    http://grafana.172.18.255.200.nip.io
+#   - Prometheus: http://prometheus.172.18.255.200.nip.io
 #
-# Fallback (without MetalLB):
-#   kubectl port-forward -n platform-ingress svc/platform-ingress 8080:80
-#   Access: http://localhost:8080/keycloak
+# Setup:
+#   1. Get LoadBalancer IP: kubectl get svc -n ingress-nginx nginx-ingress-controller-ingress-nginx-controller
+#   2. Update domain below to: <IP>.nip.io
+#   3. Services automatically accessible at: service.<IP>.nip.io
 # ==============================================================================
 
-# Domain for nip.io - UPDATE with actual MetalLB IP after deployment
-# Run: kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-# Then update this to: platform.<IP>.nip.io
-domain: platform.127.0.0.1.nip.io
+# Base domain for nip.io - UPDATE with actual MetalLB IP after deployment
+# Example: 172.18.255.200.nip.io (subdomains become: service.172.18.255.200.nip.io)
+domain: 127.0.0.1.nip.io
 
 # Disable TLS for local development (HTTP only)
 tls:

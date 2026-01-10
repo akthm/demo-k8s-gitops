@@ -122,16 +122,15 @@
       "serviceAccountsEnabled": false,
       "authorizationServicesEnabled": false,
       "rootUrl": "${ARGOCD_ROOT_URL}",
-      "baseUrl": "/argo",
+      "baseUrl": "/",
       "redirectUris": [
         "${ARGOCD_ROOT_URL}/auth/callback",
-        "${ARGOCD_ROOT_URL}/argo/auth/callback",
-        "https://platform.staging.local/argo/auth/callback",
+        "https://argocd.staging.local/auth/callback",
         "http://localhost:8080/auth/callback"
       ],
       "webOrigins": [
         "${ARGOCD_ROOT_URL}",
-        "https://platform.staging.local",
+        "https://argocd.staging.local",
         "http://localhost:8080"
       ],
       "defaultClientScopes": [
@@ -150,7 +149,7 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "${ARGOCD_ROOT_URL}/*##https://platform.staging.local/argo/*"
+        "post.logout.redirect.uris": "${ARGOCD_ROOT_URL}/*##https://argocd.staging.local/*"
       }
     },
     {
@@ -166,16 +165,15 @@
       "serviceAccountsEnabled": false,
       "authorizationServicesEnabled": false,
       "rootUrl": "${GRAFANA_ROOT_URL}",
-      "baseUrl": "/grafana",
+      "baseUrl": "/",
       "redirectUris": [
         "${GRAFANA_ROOT_URL}/login/generic_oauth",
-        "${GRAFANA_ROOT_URL}/grafana/login/generic_oauth",
-        "https://platform.staging.local/grafana/login/generic_oauth",
+        "https://grafana.staging.local/login/generic_oauth",
         "http://localhost:3000/login/generic_oauth"
       ],
       "webOrigins": [
         "${GRAFANA_ROOT_URL}",
-        "https://platform.staging.local",
+        "https://grafana.staging.local",
         "http://localhost:3000"
       ],
       "defaultClientScopes": [
@@ -194,7 +192,7 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "${GRAFANA_ROOT_URL}/*##https://platform.staging.local/grafana/*"
+        "post.logout.redirect.uris": "${GRAFANA_ROOT_URL}/*##https://grafana.staging.local/*"
       }
     },
     {

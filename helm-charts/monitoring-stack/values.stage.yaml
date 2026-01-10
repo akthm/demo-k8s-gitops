@@ -15,8 +15,8 @@ kubePrometheusStack:
       cluster: staging-k8s
       environment: staging
     
-    # External URL for Prometheus (path-based routing)
-    externalUrl: "https://platform.staging.local/prometheus"
+    # External URL for Prometheus (subdomain routing)
+    externalUrl: "https://prometheus.staging.local"
     routePrefix: /
   
   grafana:
@@ -26,14 +26,14 @@ kubePrometheusStack:
       enabled: true
       size: 10Gi
     
-    # Grafana server configuration for reverse proxy
+    # Grafana server configuration for subdomain routing
     grafana.ini:
       server:
-        domain: platform.staging.local
-        root_url: "https://platform.staging.local/grafana"
-        serve_from_sub_path: true
+        domain: grafana.staging.local
+        root_url: "https://grafana.staging.local"
+        # No serve_from_sub_path needed - running at root
       # ==============================================================================
-      # Keycloak OAuth Configuration
+      # Keycloak OAuth Configuration (Subdomain URLs)
       # ==============================================================================
       auth.generic_oauth:
         enabled: true
@@ -42,9 +42,9 @@ kubePrometheusStack:
         client_id: "grafana"
         # client_secret loaded from environment
         scopes: "openid profile email groups"
-        auth_url: "https://platform.staging.local/keycloak/realms/platform/protocol/openid-connect/auth"
-        token_url: "https://platform.staging.local/keycloak/realms/platform/protocol/openid-connect/token"
-        api_url: "https://platform.staging.local/keycloak/realms/platform/protocol/openid-connect/userinfo"
+        auth_url: "https://keycloak.staging.local/realms/platform/protocol/openid-connect/auth"
+        token_url: "https://keycloak.staging.local/realms/platform/protocol/openid-connect/token"
+        api_url: "https://keycloak.staging.local/realms/platform/protocol/openid-connect/userinfo"
         role_attribute_path: "contains(groups[*], '/grafana-admins') && 'Admin' || contains(groups[*], '/grafana-editors') && 'Editor' || 'Viewer'"
         role_attribute_strict: false
         groups_attribute_path: "groups"

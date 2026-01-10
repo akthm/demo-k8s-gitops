@@ -1,21 +1,10 @@
 # ==============================================================================
-# Platform Ingress - Grafana
+# Platform Ingress - Grafana (Subdomain Strategy)
+# ==============================================================================
+# Routes: https://grafana.{domain}/
+# Cross-namespace ingress directly references service in monitoring namespace
 # ==============================================================================
 {{- if .Values.grafana.enabled }}
-# ExternalName service to reference cross-namespace service
-apiVersion: v1
-kind: Service
-metadata:
-  name: grafana-external
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "platform-ingress.labels" . | nindent 4 }}
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  type: ExternalName
-  externalName: {{ .Values.grafana.serviceName }}.{{ .Values.grafana.serviceNamespace }}.svc.cluster.local
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -32,26 +21,23 @@ metadata:
     {{- with .Values.grafana.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-    # Rewrite path: /grafana/foo -> /foo
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   {{- if .Values.tls.enabled }}
   tls:
     - hosts:
-        - {{ .Values.domain }}
+        - {{ .Values.grafana.subdomain }}.{{ .Values.domain }}
       secretName: {{ .Values.tls.secretName }}
   {{- end }}
   rules:
-    - host: {{ .Values.domain }}
+    - host: {{ .Values.grafana.subdomain }}.{{ .Values.domain }}
       http:
         paths:
-          - path: /grafana(/|$)(.*)
-            pathType: ImplementationSpecific
+          - path: /
+            pathType: Prefix
             backend:
               service:
-                name: {{ .Values.grafana.serviceName }}
+                name: {{ .Values.grafana.serviceName }}.{{ .Values.grafana.serviceNamespace }}.svc.cluster.local
                 port:
                   number: {{ .Values.grafana.servicePort }}
 {{- end }}

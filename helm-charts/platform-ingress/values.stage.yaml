@@ -1,11 +1,26 @@
 # ==============================================================================
-# Platform Ingress - Staging Environment
+# Platform Ingress - Staging Environment (Subdomain Strategy)
+# ==============================================================================
+# Access URLs:
+#   - Keycloak:   https://keycloak.staging.local
+#   - ArgoCD:     https://argocd.staging.local
+#   - Grafana:    https://grafana.staging.local
+#   - Prometheus: https://prometheus.staging.local
+#
+# DNS Setup Required:
+#   Add to /etc/hosts or DNS server:
+#     <cluster-ip>  keycloak.staging.local
+#     <cluster-ip>  argocd.staging.local
+#     <cluster-ip>  grafana.staging.local
+#     <cluster-ip>  prometheus.staging.local
 # ==============================================================================
 
-domain: platform.staging.local
+# Base domain for staging (subdomains will be: service.staging.local)
+domain: staging.local
 
 tls:
   enabled: true
+  # Wildcard certificate for *.staging.local
   secretName: platform-staging-tls
 
 certManager:
@@ -18,17 +33,17 @@ certManager:
     issuerName: platform-ca-issuer
     secretName: platform-ca-secret
 
-# Service configurations for staging
+# Service configurations for staging (subdomains)
 keycloak:
   enabled: true
-  path: /keycloak
+  subdomain: keycloak
   serviceName: keycloak
   serviceNamespace: keycloak
   servicePort: 80
 
 argocd:
   enabled: true
-  path: /argo
+  subdomain: argocd
   serviceName: argocd-server
   serviceNamespace: argocd
   servicePort: 443
@@ -37,14 +52,14 @@ argocd:
 
 grafana:
   enabled: true
-  path: /grafana
+  subdomain: grafana
   serviceName: kube-prometheus-stack-grafana
   serviceNamespace: monitoring
   servicePort: 80
 
 prometheus:
   enabled: true
-  path: /prometheus
+  subdomain: prometheus
   serviceName: kube-prometheus-stack-prometheus
   serviceNamespace: monitoring
   servicePort: 9090
@@ -52,4 +67,4 @@ prometheus:
     enabled: true
     secretName: prometheus-basic-auth
     username: admin
-    password: ""  # Will be auto-generated
+    password: ""

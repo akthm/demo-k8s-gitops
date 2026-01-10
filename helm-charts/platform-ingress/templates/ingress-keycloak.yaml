@@ -1,21 +1,10 @@
 # ==============================================================================
-# Platform Ingress - Keycloak
+# Platform Ingress - Keycloak (Subdomain Strategy)
+# ==============================================================================
+# Routes: https://keycloak.{domain}/
+# Cross-namespace ingress directly references service in keycloak namespace
 # ==============================================================================
 {{- if .Values.keycloak.enabled }}
-# ExternalName service to reference cross-namespace service
-apiVersion: v1
-kind: Service
-metadata:
-  name: keycloak-external
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "platform-ingress.labels" . | nindent 4 }}
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  type: ExternalName
-  externalName: {{ .Values.keycloak.serviceName }}.{{ .Values.keycloak.serviceNamespace }}.svc.cluster.local
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -32,26 +21,23 @@ metadata:
     {{- with .Values.keycloak.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-    # Rewrite path: /keycloak/foo -> /foo
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   {{- if .Values.tls.enabled }}
   tls:
     - hosts:
-        - {{ .Values.domain }}
+        - {{ .Values.keycloak.subdomain }}.{{ .Values.domain }}
       secretName: {{ .Values.tls.secretName }}
   {{- end }}
   rules:
-    - host: {{ .Values.domain }}
+    - host: {{ .Values.keycloak.subdomain }}.{{ .Values.domain }}
       http:
         paths:
-          - path: /keycloak(/|$)(.*)
-            pathType: ImplementationSpecific
+          - path: /
+            pathType: Prefix
             backend:
               service:
-                name: {{ .Values.keycloak.serviceName }}
+                name: {{ .Values.keycloak.serviceName }}.{{ .Values.keycloak.serviceNamespace }}.svc.cluster.local
                 port:
                   number: {{ .Values.keycloak.servicePort }}
 {{- end }}
