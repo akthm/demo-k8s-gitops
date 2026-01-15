@@ -267,7 +267,7 @@
   ],
   "users": [
     {
-      "username": "admin",
+      "username": "admin1",
       "enabled": true,
       "email": "admin@platform.local",
       "firstName": "Platform",
