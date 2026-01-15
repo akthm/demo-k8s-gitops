@@ -24,7 +24,7 @@ spec:
       releaseName: keycloak
       valueFiles:
         - values.yaml
-        - values.stage.yaml   # Staging values work for local
+        - values.local.yaml   # Local-specific configuration
   
   destination:
     server: https://kubernetes.default.svc

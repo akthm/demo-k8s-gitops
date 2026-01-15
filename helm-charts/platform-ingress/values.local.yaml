@@ -40,3 +40,4 @@ certManager:
 prometheus:
   basicAuth:
     enabled: false
+  annotations: {}

@@ -1,0 +1,92 @@
+# ==============================================================================
+# Keycloak SSO - Local Development Environment
+# ==============================================================================
+# Uses nip.io subdomain strategy: service.127.0.0.1.nip.io
+# ==============================================================================
+
+keycloak:
+  production: false
+  replicaCount: 1
+  
+  # Use local cache for single replica deployment
+  cache:
+    enabled: true
+    stackName: ""  # Empty to use default (local for single replica)
+    stackFile: ""
+  
+  # ==============================================================================
+  # Keycloak Config CLI - Auto-provision realm and clients
+  # ==============================================================================
+  keycloakConfigCli:
+    enabled: true
+    # Use the realm ConfigMap created by our template
+    existingConfigmap: "keycloak-realm-config"
+    extraEnvVars:
+      # Admin credentials for keycloak-config-cli
+      - name: KEYCLOAK_USER
+        valueFrom:
+          secretKeyRef:
+            name: keycloak-admin-credentials
+            key: admin-user
+      - name: KEYCLOAK_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: keycloak-admin-credentials
+            key: admin-password
+      # Platform URLs for client redirect URIs (nip.io subdomain strategy)
+      - name: ARGOCD_ROOT_URL
+        value: "http://argocd.127.0.0.1.nip.io"
+      - name: GRAFANA_ROOT_URL
+        value: "http://grafana.127.0.0.1.nip.io"
+      - name: REACT_ROOT_URL
+        value: "http://platform.127.0.0.1.nip.io"
+  
+  # Use simple admin credentials for local development
+  auth:
+    adminUser: "admin"
+    adminPassword: "admin123"
+    # Don't use external secrets locally
+    existingSecret: ""
+  
+  # Simple admin credentials via env vars for local dev
+  extraEnvVars:
+    - name: KEYCLOAK_EXTRA_ARGS
+      value: "--features=token-exchange"
+    - name: KC_BOOTSTRAP_ADMIN_USERNAME
+      value: "admin"
+    - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+      value: "admin123"
+
+  # Keycloak runs at root path on subdomain: keycloak.127.0.0.1.nip.io
+  # No httpRelativePath needed for subdomain strategy
+  
+  postgresql:
+    enabled: true
+    auth:
+      # Use simple passwords for local dev
+      postgresPassword: "postgres"
+      password: "keycloak"
+      database: keycloak
+      username: keycloak
+      # Don't use external secrets
+      existingSecret: ""
+    primary:
+      persistence:
+        enabled: true
+        size: 8Gi
+  
+  # Disable standalone ingress - using platform-ingress instead
+  ingress:
+    enabled: false
+
+# Disable External Secrets for local development
+externalSecrets:
+  enabled: false
+
+# ArgoCD OIDC Configuration
+argocd:
+  oidc:
+    enabled: true
+    issuer: "http://keycloak.127.0.0.1.nip.io/keycloak/realms/platform"
+    clientId: "argocd"
+    argoCdUrl: "http://argocd.127.0.0.1.nip.io"

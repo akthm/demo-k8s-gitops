@@ -17,7 +17,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "2"
 data:
   # Base URL for ArgoCD (subdomain strategy)
-  url: "https://argocd.staging.local"
+  url: {{ .Values.argocd.oidc.argoCdUrl | quote }}
   # OIDC configuration for Keycloak SSO (subdomain URLs)
   oidc.config: |
     name: Keycloak

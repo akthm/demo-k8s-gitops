@@ -113,5 +113,6 @@ externalSecrets:
 argocd:
   oidc:
     enabled: true
-    issuer: "https://platform.staging.local/keycloak/realms/platform"
+    issuer: "https://keycloak.staging.local/keycloak/realms/platform"
     clientId: "argocd"
+    argoCdUrl: "https://argocd.staging.local"
