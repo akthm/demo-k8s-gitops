@@ -25,13 +25,13 @@ get_loadbalancer_ip() {
 
 # Try to get LoadBalancer hostname (EKS)
 get_loadbalancer_hostname() {
-    kubectl get svc -n ingress-nginx ingress-nginx-controller \
+    kubectl get svc -n ingress-nginx nginx-ingress-controller-ingress \
         -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null
 }
 
 # Try to get NodePort
 get_nodeport() {
-    kubectl get svc -n ingress-nginx ingress-nginx-controller \
+    kubectl get svc -n ingress-nginx nginx-ingress-controller-ingress-nginx-controller \
         -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}' 2>/dev/null
 }
 

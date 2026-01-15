@@ -60,16 +60,14 @@ argocd:
   subdomain: argocd
   serviceName: argocd-server
   serviceNamespace: argocd
-  servicePort: 443
-  annotations:
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+  servicePort: 80
+  annotations: {}
 
 # Grafana Dashboard
 grafana:
   enabled: true
   subdomain: grafana
-  serviceName: kube-prometheus-stack-grafana
+  serviceName: prometheus-grafana
   serviceNamespace: monitoring
   servicePort: 80
   annotations: {}
@@ -78,7 +76,7 @@ grafana:
 prometheus:
   enabled: true
   subdomain: prometheus
-  serviceName: kube-prometheus-stack-prometheus
+  serviceName: prometheus-kube-prometheus-prometheus
   serviceNamespace: monitoring
   servicePort: 9090
   basicAuth:
