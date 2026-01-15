@@ -4,6 +4,12 @@
 # Uses nip.io subdomain strategy: service.127.0.0.1.nip.io
 # ==============================================================================
 
+# ==============================================================================
+# Keycloak Config CLI - Auto-provision realm and clients
+# ==============================================================================
+keycloakConfigCli:
+  enabled: true
+
 keycloak:
   production: false
   replicaCount: 1
