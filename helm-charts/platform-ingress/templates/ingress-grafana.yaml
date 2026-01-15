@@ -2,14 +2,14 @@
 # Platform Ingress - Grafana (Subdomain Strategy)
 # ==============================================================================
 # Routes: https://grafana.{domain}/
-# Cross-namespace ingress directly references service in monitoring namespace
+# Ingress created in monitoring namespace to reference local service
 # ==============================================================================
 {{- if .Values.grafana.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "platform-ingress.fullname" . }}-grafana
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.grafana.serviceNamespace }}
   labels:
     {{- include "platform-ingress.labels" . | nindent 4 }}
     app.kubernetes.io/component: grafana
@@ -37,7 +37,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ .Values.grafana.serviceName }}.{{ .Values.grafana.serviceNamespace }}.svc.cluster.local
+                name: {{ .Values.grafana.serviceName }}
                 port:
                   number: {{ .Values.grafana.servicePort }}
 {{- end }}

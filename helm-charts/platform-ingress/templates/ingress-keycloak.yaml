@@ -2,14 +2,14 @@
 # Platform Ingress - Keycloak (Subdomain Strategy)
 # ==============================================================================
 # Routes: https://keycloak.{domain}/
-# Cross-namespace ingress directly references service in keycloak namespace
+# Ingress created in keycloak namespace to reference local service
 # ==============================================================================
 {{- if .Values.keycloak.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "platform-ingress.fullname" . }}-keycloak
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.keycloak.serviceNamespace }}
   labels:
     {{- include "platform-ingress.labels" . | nindent 4 }}
     app.kubernetes.io/component: keycloak
@@ -37,7 +37,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ .Values.keycloak.serviceName }}.{{ .Values.keycloak.serviceNamespace }}.svc.cluster.local
+                name: {{ .Values.keycloak.serviceName }}
                 port:
                   number: {{ .Values.keycloak.servicePort }}
 {{- end }}

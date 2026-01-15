@@ -2,14 +2,14 @@
 # Platform Ingress - ArgoCD (Subdomain Strategy)
 # ==============================================================================
 # Routes: https://argocd.{domain}/
-# Cross-namespace ingress directly references service in argocd namespace
+# Ingress created in argocd namespace to reference local service
 # ==============================================================================
 {{- if .Values.argocd.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "platform-ingress.fullname" . }}-argocd
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.argocd.serviceNamespace }}
   labels:
     {{- include "platform-ingress.labels" . | nindent 4 }}
     app.kubernetes.io/component: argocd
@@ -37,7 +37,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ .Values.argocd.serviceName }}.{{ .Values.argocd.serviceNamespace }}.svc.cluster.local
+                name: {{ .Values.argocd.serviceName }}
                 port:
                   number: {{ .Values.argocd.servicePort }}
 {{- end }}

@@ -2,14 +2,14 @@
 # Platform Ingress - Prometheus (Subdomain Strategy with Basic Auth)
 # ==============================================================================
 # Routes: https://prometheus.{domain}/
-# Cross-namespace ingress directly references service in monitoring namespace
+# Ingress created in monitoring namespace to reference local service
 # ==============================================================================
 {{- if .Values.prometheus.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "platform-ingress.fullname" . }}-prometheus
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.prometheus.serviceNamespace }}
   labels:
     {{- include "platform-ingress.labels" . | nindent 4 }}
     app.kubernetes.io/component: prometheus
@@ -43,7 +43,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ .Values.prometheus.serviceName }}.{{ .Values.prometheus.serviceNamespace }}.svc.cluster.local
+                name: {{ .Values.prometheus.serviceName }}
                 port:
                   number: {{ .Values.prometheus.servicePort }}
 {{- end }}
