@@ -89,10 +89,10 @@ keycloak:
 externalSecrets:
   enabled: false
 
-# ArgoCD OIDC Configuration
+# ArgoCD OIDC Configuration (disabled - configure manually after keycloak is running)
 argocd:
   oidc:
-    enabled: true
+    enabled: false  # Manual configuration recommended to avoid conflicts with argocd-cm
     issuer: "http://keycloak.127.0.0.1.nip.io/keycloak/realms/platform"
     clientId: "argocd"
     argoCdUrl: "http://argocd.127.0.0.1.nip.io"
