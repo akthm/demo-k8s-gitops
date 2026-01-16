@@ -22,7 +22,7 @@
 
 # Base domain for nip.io - UPDATE with actual MetalLB IP after deployment
 # Example: 172.18.255.200.nip.io (subdomains become: service.172.18.255.200.nip.io)
-domain: 127.0.0.1.nip.io
+domain: dev.local
 
 # Disable TLS for local development (HTTP only)
 tls:
