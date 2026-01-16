@@ -20,6 +20,7 @@ spec:
     helm:
       valueFiles:
         - values.yaml
+        - values.local.yaml
       parameters:
         - name: backend.serviceHost
           value: "flask-app.backend.svc.cluster.local"

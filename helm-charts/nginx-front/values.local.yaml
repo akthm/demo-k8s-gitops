@@ -1,0 +1,15 @@
+
+# Overriding default values for local development
+# Using nip.io for automatic wildcard DNS resolution
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  }
+  hosts:
+    - host: "nginx-front.127.0.0.1.nip.io" # for clear seperation
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
