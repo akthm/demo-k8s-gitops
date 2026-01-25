@@ -134,3 +134,14 @@ externalSecretsOperator:
     scrapeTimeout: 10s
     labels: {}  # Additional labels for ServiceMonitor
     metricRelabelings: []
+
+# ==============================================================================
+# External Secrets Configuration
+# ==============================================================================
+externalSecrets:
+  enabled: false
+  apiVersion: "v1beta1"
+  secretStore:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  appSecretKey: "monitoring"

@@ -64,14 +64,18 @@ keycloak:
   postgresql:
     enabled: false
   
-  # External database configuration
+  # External database configuration (OCI Autonomous Database)
+  # Note: Actual host comes from KC_DB_URL env var with secret references
   externalDatabase:
-    host: ""  # Injected from secret via extraEnvVarsSecret
+    host: "adb.il-jerusalem-1.oraclecloud.com"
     port: 1521
     database: stagingdb_high
     existingSecret: "keycloak-postgres-credentials"
     existingSecretPasswordKey: "password"
     existingSecretUserKey: "username"
+  
+  # TLS/Proxy configuration for production mode
+  proxyHeaders: xforwarded
   
   # ------------------------------------------------------------------------------
   # Ingress Configuration

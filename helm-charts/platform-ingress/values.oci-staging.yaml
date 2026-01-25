@@ -103,6 +103,17 @@ prometheus:
     password: ""  # Use external secret
 
 # ------------------------------------------------------------------------------
+# External Secrets Configuration (OCI Vault)
+# ------------------------------------------------------------------------------
+externalSecrets:
+  enabled: true
+  apiVersion: "v1beta1"
+  secretStore:
+    name: oci-vault
+    kind: ClusterSecretStore
+  appSecretKey: "cloudflare"
+
+# ------------------------------------------------------------------------------
 # Let's Encrypt ClusterIssuer Configuration
 # ------------------------------------------------------------------------------
 letsEncrypt:
@@ -114,6 +125,8 @@ letsEncrypt:
   # Cloudflare DNS01 solver
   cloudflare:
     enabled: true
+    # Vault secret key for Cloudflare token
+    secretKey: "cloudflare"
     # Secret containing Cloudflare API token
     apiTokenSecretRef:
       name: cloudflare-api-token

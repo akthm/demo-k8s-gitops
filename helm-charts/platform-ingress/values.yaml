@@ -88,3 +88,28 @@ prometheus:
     nginx.ingress.kubernetes.io/auth-type: "basic"
     nginx.ingress.kubernetes.io/auth-secret: "prometheus-basic-auth"
     nginx.ingress.kubernetes.io/auth-realm: "Prometheus - Authentication Required"
+
+# ==============================================================================
+# External Secrets Configuration
+# ==============================================================================
+externalSecrets:
+  enabled: false
+  apiVersion: "v1beta1"
+  secretStore:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  appSecretKey: "cloudflare"
+
+# ==============================================================================
+# Let's Encrypt Configuration
+# ==============================================================================
+letsEncrypt:
+  enabled: false
+  email: ""
+  server: https://acme-v02.api.letsencrypt.org/directory
+  cloudflare:
+    enabled: false
+    secretKey: "cloudflare"
+    apiTokenSecretRef:
+      name: cloudflare-api-token
+      key: api-token
