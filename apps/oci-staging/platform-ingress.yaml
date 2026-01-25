@@ -1,0 +1,39 @@
+---
+# ==============================================================================
+# Platform Ingress - OCI Staging
+# ==============================================================================
+# Deploys ingress configuration with:
+#   - Let's Encrypt TLS via cert-manager (Cloudflare DNS01)
+#   - nginx-ingress-controller (NodePort for edge proxy)
+#   - Subdomain routing for all platform services
+# ==============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: HEAD
+    path: helm-charts/platform-ingress
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.oci-staging.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground

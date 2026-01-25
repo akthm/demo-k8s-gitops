@@ -1,0 +1,120 @@
+# ==============================================================================
+# Platform Ingress - OCI Staging Environment
+# ==============================================================================
+# Configuration for OCI deployment with:
+#   - Let's Encrypt TLS via Cloudflare DNS01 challenge
+#   - NGINX Ingress Controller (NodePort for edge proxy)
+#   - Subdomain routing for all platform services
+#   - Edge proxy at 129.159.146.2 terminates external traffic
+# ==============================================================================
+
+# UPDATE: Set your actual domain
+domain: adaas-il.com
+
+# ------------------------------------------------------------------------------
+# TLS Configuration
+# ------------------------------------------------------------------------------
+tls:
+  enabled: true
+  secretName: platform-oci-staging-tls
+
+# ------------------------------------------------------------------------------
+# cert-manager with Let's Encrypt + Cloudflare DNS01
+# ------------------------------------------------------------------------------
+certManager:
+  enabled: true
+  selfSigned:
+    enabled: false
+  clusterIssuer:
+    enabled: true
+    name: letsencrypt-prod
+  caIssuer:
+    enabled: false
+
+# ------------------------------------------------------------------------------
+# NGINX Ingress Controller - NodePort for Edge Proxy
+# ------------------------------------------------------------------------------
+controller:
+  service:
+    type: NodePort
+    nodePorts:
+      http: 30080
+      https: 30443
+  # OCI-specific annotations
+  config:
+    use-forwarded-headers: "true"
+    compute-full-forwarded-for: "true"
+    use-proxy-protocol: "false"
+
+# ------------------------------------------------------------------------------
+# Ingress Annotations
+# ------------------------------------------------------------------------------
+ingress:
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+
+# ------------------------------------------------------------------------------
+# Service Configurations
+# ------------------------------------------------------------------------------
+keycloak:
+  enabled: true
+  path: /
+  serviceName: keycloak
+  serviceNamespace: keycloak
+  servicePort: 80
+  # Keycloak gets its own subdomain ingress
+  subdomain: keycloak
+
+argocd:
+  enabled: true
+  path: /
+  serviceName: argocd-server
+  serviceNamespace: argocd
+  servicePort: 80
+  subdomain: argocd
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+
+grafana:
+  enabled: true
+  path: /
+  serviceName: prometheus-grafana
+  serviceNamespace: monitoring
+  servicePort: 80
+  subdomain: grafana
+
+prometheus:
+  enabled: true
+  path: /
+  serviceName: prometheus-kube-prometheus-prometheus
+  serviceNamespace: monitoring
+  servicePort: 9090
+  subdomain: prometheus
+  basicAuth:
+    enabled: true
+    secretName: prometheus-basic-auth
+    username: admin
+    password: ""  # Use external secret
+
+# ------------------------------------------------------------------------------
+# Let's Encrypt ClusterIssuer Configuration
+# ------------------------------------------------------------------------------
+letsEncrypt:
+  enabled: true
+  # UPDATE: Set your email for Let's Encrypt notifications
+  email: akthmd@adaas-il.com
+  # Use staging for testing, prod for real certificates
+  server: https://acme-v02.api.letsencrypt.org/directory
+  # Cloudflare DNS01 solver
+  cloudflare:
+    enabled: true
+    # Secret containing Cloudflare API token
+    apiTokenSecretRef:
+      name: cloudflare-api-token
+      key: api-token

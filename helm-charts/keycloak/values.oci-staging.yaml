@@ -1,0 +1,115 @@
+# ==============================================================================
+# Keycloak SSO - OCI Staging Environment
+# ==============================================================================
+# Configuration for OCI deployment with:
+#   - External OCI Autonomous Database (ATP) - PostgreSQL mode
+#   - OCI Vault for admin/client secrets (consolidated 'keycloak' secret)
+#   - Let's Encrypt TLS via Cloudflare DNS01
+# ==============================================================================
+
+keycloak:
+  production: true
+  replicaCount: 2  # HA configuration for staging
+  
+  # Distributed cache for multi-replica deployment
+  cache:
+    enabled: true
+    stackName: ""
+    stackFile: ""
+  
+  # ------------------------------------------------------------------------------
+  # Admin Credentials from OCI Vault (keycloak secret)
+  # ------------------------------------------------------------------------------
+  auth:
+    adminUser: ""  # Using KC_BOOTSTRAP_ADMIN_USERNAME instead
+    existingSecret: keycloak-admin-credentials
+    passwordSecretKey: admin-password
+  
+  # Inject admin credentials from secret via extraEnvVars
+  extraEnvVars:
+    - name: KEYCLOAK_EXTRA_ARGS
+      value: "--features=token-exchange,admin-fine-grained-authz"
+    - name: KC_BOOTSTRAP_ADMIN_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-admin-credentials
+          key: admin-user
+    - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-admin-credentials
+          key: admin-password
+    # ATP PostgreSQL connection
+    - name: KC_DB
+      value: "postgres"
+    - name: KC_DB_URL
+      value: "jdbc:postgresql://$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=require"
+    - name: KC_DB_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-postgres-credentials
+          key: username
+    - name: KC_DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-postgres-credentials
+          key: password
+  
+  # Extra environment variables from secrets (for DB_HOST, DB_PORT, DB_NAME)
+  extraEnvVarsSecret: keycloak-postgres-credentials
+  
+  # ------------------------------------------------------------------------------
+  # Disable in-cluster PostgreSQL - Using external OCI ATP
+  # ------------------------------------------------------------------------------
+  postgresql:
+    enabled: false
+  
+  # External database configuration
+  externalDatabase:
+    host: ""  # Injected from secret via extraEnvVarsSecret
+    port: 1521
+    database: stagingdb_high
+    existingSecret: "keycloak-postgres-credentials"
+    existingSecretPasswordKey: "password"
+    existingSecretUserKey: "username"
+  
+  # ------------------------------------------------------------------------------
+  # Ingress Configuration
+  # ------------------------------------------------------------------------------
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    # UPDATE: Set your actual domain
+    hostname: keycloak.adaas-il.com
+    tls: true
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    extraTls:
+      - hosts:
+          - keycloak.adaas-il.com
+        secretName: keycloak-tls
+  
+  # ------------------------------------------------------------------------------
+  # Resources - Sized for OCI Always-Free tier
+  # ------------------------------------------------------------------------------
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+# ------------------------------------------------------------------------------
+# External Secrets - OCI Vault
+# ------------------------------------------------------------------------------
+externalSecrets:
+  enabled: true
+  refreshInterval: "10m"
+  secretStore:
+    name: oci-vault
+    kind: ClusterSecretStore
+  # Consolidated OCI Vault secret name (matches Terraform application_secrets key)
+  appSecretKey: "keycloak"

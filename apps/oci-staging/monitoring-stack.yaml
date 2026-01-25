@@ -1,0 +1,40 @@
+---
+# ==============================================================================
+# Monitoring Stack - OCI Staging
+# ==============================================================================
+# Deploys Prometheus + Grafana with:
+#   - ServiceMonitors for all platform components
+#   - Secrets rotation dashboards
+#   - OCI-specific storage class for persistent volumes
+# ==============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: HEAD
+    path: helm-charts/monitoring-stack
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.oci-staging.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true

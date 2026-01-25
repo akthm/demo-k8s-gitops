@@ -1,0 +1,156 @@
+# ==============================================================================
+# ArgoCD - OCI Staging Environment
+# ==============================================================================
+# Configuration for OCI deployment with:
+#   - NodePort service for edge proxy access
+#   - Keycloak OIDC integration
+#   - OCI Vault for client secrets
+#   - Let's Encrypt TLS via platform-ingress
+# ==============================================================================
+
+argocd:
+  # ------------------------------------------------------------------------------
+  # Global Configuration
+  # ------------------------------------------------------------------------------
+  global:
+    # UPDATE: Set your actual domain
+    domain: argocd.adaas-il.com
+
+  # ------------------------------------------------------------------------------
+  # Server Configuration
+  # ------------------------------------------------------------------------------
+  server:
+    # NodePort for edge proxy routing
+    service:
+      type: NodePort
+      nodePortHttp: 30081
+      nodePortHttps: 30444
+    
+    # Ingress handled by platform-ingress chart
+    ingress:
+      enabled: false
+    
+    # TLS terminated at edge proxy/ingress
+    extraArgs:
+      - --insecure
+    
+    # Config for OIDC
+    config:
+      # UPDATE: Set your actual domain
+      url: https://argocd.adaas-il.com
+      # OIDC configuration
+      oidc.config: |
+        name: Keycloak
+        issuer: https://keycloak.adaas-il.com/realms/platform
+        clientID: argocd
+        clientSecret: $argocd-oidc:client-secret
+        requestedScopes:
+          - openid
+          - profile
+          - email
+          - groups
+    
+    # RBAC policy for Keycloak groups
+    rbacConfig:
+      policy.csv: |
+        g, /platform-admins, role:admin
+        g, /developers, role:readonly
+      policy.default: role:readonly
+    
+    # Resources sized for OCI Always-Free
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  # ------------------------------------------------------------------------------
+  # Controller Configuration
+  # ------------------------------------------------------------------------------
+  controller:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+  # ------------------------------------------------------------------------------
+  # Repo Server Configuration
+  # ------------------------------------------------------------------------------
+  repoServer:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 300m
+        memory: 512Mi
+
+  # ------------------------------------------------------------------------------
+  # Redis Configuration
+  # ------------------------------------------------------------------------------
+  redis:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  # ------------------------------------------------------------------------------
+  # Application Set Controller
+  # ------------------------------------------------------------------------------
+  applicationSet:
+    enabled: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 256Mi
+
+  # ------------------------------------------------------------------------------
+  # Notifications Controller
+  # ------------------------------------------------------------------------------
+  notifications:
+    enabled: false
+
+  # ------------------------------------------------------------------------------
+  # Dex - Disabled, using Keycloak directly
+  # ------------------------------------------------------------------------------
+  dex:
+    enabled: false
+
+# ------------------------------------------------------------------------------
+# OIDC Configuration (Keycloak)
+# ------------------------------------------------------------------------------
+oidc:
+  enabled: true
+  # UPDATE: Set your actual domain
+  issuer: "https://keycloak.adaas-il.com/realms/platform"
+  clientId: "argocd"
+  clientSecretRef:
+    name: "argocd-oidc"
+    key: "client-secret"
+  requestedScopes:
+    - openid
+    - profile
+    - email
+    - groups
+
+# ------------------------------------------------------------------------------
+# External Secrets - OCI Vault
+# ------------------------------------------------------------------------------
+externalSecrets:
+  enabled: true
+  secretStore:
+    name: oci-vault
+    kind: ClusterSecretStore
+  # ArgoCD OIDC secret is in keycloak vault secret (argocd_secret key)
+  appSecretKey: "keycloak"

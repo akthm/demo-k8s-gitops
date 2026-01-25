@@ -1,0 +1,35 @@
+---
+# ==============================================================================
+# ArgoCD Application - OCI Staging
+# ==============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: HEAD
+    path: helm-charts/argocd
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.oci-staging.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true

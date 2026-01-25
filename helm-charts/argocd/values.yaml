@@ -1,0 +1,130 @@
+# ==============================================================================
+# ArgoCD - Default Values
+# ==============================================================================
+# Base configuration for ArgoCD GitOps controller
+# Override per environment in values.<env>.yaml
+# ==============================================================================
+
+argocd:
+  # ------------------------------------------------------------------------------
+  # Global Configuration
+  # ------------------------------------------------------------------------------
+  global:
+    # Domain for ArgoCD - UPDATE per environment
+    domain: argocd.localhost
+
+  # ------------------------------------------------------------------------------
+  # Server Configuration
+  # ------------------------------------------------------------------------------
+  server:
+    # Service type - NodePort for edge proxy, LoadBalancer for cloud LB
+    service:
+      type: ClusterIP
+      ports:
+        http: 80
+        https: 443
+    
+    # Ingress (disabled by default, use platform-ingress)
+    ingress:
+      enabled: false
+    
+    # Insecure mode (TLS terminated at ingress)
+    extraArgs:
+      - --insecure
+    
+    # Resources
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  # ------------------------------------------------------------------------------
+  # Controller Configuration
+  # ------------------------------------------------------------------------------
+  controller:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+  # ------------------------------------------------------------------------------
+  # Repo Server Configuration
+  # ------------------------------------------------------------------------------
+  repoServer:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  # ------------------------------------------------------------------------------
+  # Redis Configuration
+  # ------------------------------------------------------------------------------
+  redis:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+  # ------------------------------------------------------------------------------
+  # Application Set Controller
+  # ------------------------------------------------------------------------------
+  applicationSet:
+    enabled: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+  # ------------------------------------------------------------------------------
+  # Notifications Controller
+  # ------------------------------------------------------------------------------
+  notifications:
+    enabled: false
+
+  # ------------------------------------------------------------------------------
+  # Dex (OIDC) - Disabled, using Keycloak directly
+  # ------------------------------------------------------------------------------
+  dex:
+    enabled: false
+
+# ------------------------------------------------------------------------------
+# OIDC Configuration (Keycloak)
+# ------------------------------------------------------------------------------
+oidc:
+  enabled: false
+  issuer: ""
+  clientId: "argocd"
+  clientSecretRef:
+    name: "argocd-oidc"
+    key: "client-secret"
+  requestedScopes:
+    - openid
+    - profile
+    - email
+    - groups
+
+# ------------------------------------------------------------------------------
+# External Secrets Configuration
+# ------------------------------------------------------------------------------
+externalSecrets:
+  enabled: false
+  secretStore:
+    name: aws-secrets-manager
+    kind: ClusterSecretStore
+  oidcSecret:
+    remoteRef: ""

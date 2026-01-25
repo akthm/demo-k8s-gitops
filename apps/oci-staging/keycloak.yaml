@@ -1,0 +1,39 @@
+---
+# ==============================================================================
+# Keycloak SSO - OCI Staging
+# ==============================================================================
+# Deploys Keycloak with:
+#   - External OCI Autonomous Database (PostgreSQL)
+#   - OCI Vault for admin/client secrets
+#   - Wallet-based mTLS connection to ATP
+# ==============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: HEAD
+    path: helm-charts/keycloak
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.oci-staging.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keycloak
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground

@@ -1,0 +1,140 @@
+# ==============================================================================
+# Monitoring Stack - OCI Staging Environment
+# ==============================================================================
+# Configuration for OCI deployment with:
+#   - Prometheus + Grafana
+#   - OCI Block Volume storage (oci-bv storage class)
+#   - Secrets rotation dashboards
+#   - Let's Encrypt TLS
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Prometheus Configuration
+# ------------------------------------------------------------------------------
+prometheus:
+  prometheusSpec:
+    # Resource limits for OCI Always-Free tier
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    # OCI Block Volume storage
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: oci-bv
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+    # Retention settings
+    retention: 15d
+    retentionSize: "18GB"
+  
+  # ServiceMonitor selector
+  serviceMonitorSelectorNilUsesHelmValues: false
+  podMonitorSelectorNilUsesHelmValues: false
+  ruleSelectorNilUsesHelmValues: false
+
+# ------------------------------------------------------------------------------
+# Grafana Configuration
+# ------------------------------------------------------------------------------
+grafana:
+  enabled: true
+  adminPassword: ""  # Use external secret
+  
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+  
+  # Persistence using OCI Block Volume
+  persistence:
+    enabled: true
+    storageClassName: oci-bv
+    size: 10Gi
+  
+  # Ingress
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    # UPDATE: Set your actual domain
+    hosts:
+      - grafana.adaas-il.com
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  
+  # OIDC/Keycloak authentication
+  grafana.ini:
+    server:
+      # UPDATE: Set your actual domain
+      root_url: https://grafana.adaas-il.com
+    auth.generic_oauth:
+      enabled: true
+      name: Keycloak
+      allow_sign_up: true
+      client_id: grafana
+      # client_secret from external secret
+      scopes: openid profile email groups
+      # UPDATE: Set your actual domain
+      auth_url: https://keycloak.adaas-il.com/realms/platform/protocol/openid-connect/auth
+      token_url: https://keycloak.adaas-il.com/realms/platform/protocol/openid-connect/token
+      api_url: https://keycloak.adaas-il.com/realms/platform/protocol/openid-connect/userinfo
+      role_attribute_path: contains(groups[*], '/grafana-admins') && 'Admin' || contains(groups[*], '/grafana-editors') && 'Editor' || 'Viewer'
+
+# ------------------------------------------------------------------------------
+# Alertmanager Configuration
+# ------------------------------------------------------------------------------
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: oci-bv
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+# ------------------------------------------------------------------------------
+# Node Exporter
+# ------------------------------------------------------------------------------
+nodeExporter:
+  enabled: true
+
+# ------------------------------------------------------------------------------
+# Kube State Metrics
+# ------------------------------------------------------------------------------
+kubeStateMetrics:
+  enabled: true
+
+# ------------------------------------------------------------------------------
+# External Secrets - OCI Vault
+# ------------------------------------------------------------------------------
+externalSecrets:
+  enabled: true
+  secretStore:
+    name: oci-vault
+    kind: ClusterSecretStore
+  # Consolidated OCI Vault secret name (matches Terraform application_secrets key)
+  appSecretKey: "monitoring"
