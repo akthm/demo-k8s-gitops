@@ -72,7 +72,7 @@ data:
 # ==============================================================================
 # ExternalSecret to fetch ArgoCD OIDC client secret from AWS Secrets Manager
 # ==============================================================================
-apiVersion: external-secrets.io/v1
+apiVersion: 'external-secrets.io/{{ .Values.externalSecrets.apiVersion | default "v1beta1" }}'
 kind: ExternalSecret
 metadata:
   name: argocd-oidc-secret
