@@ -2,18 +2,31 @@
 # Monitoring Stack - OCI Staging Environment
 # ==============================================================================
 # Configuration for OCI deployment with:
-#   - Prometheus + Grafana
+#   - Prometheus + Grafana via kube-prometheus-stack
 #   - OCI Block Volume storage (oci-bv storage class)
 #   - Secrets rotation dashboards
 #   - Let's Encrypt TLS
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# Prometheus Configuration
+# Kube Prometheus Stack - MUST be enabled for CRDs
 # ------------------------------------------------------------------------------
-prometheus:
-  prometheusSpec:
-    # Resource limits for OCI Always-Free tier
+kubePrometheusStack:
+  enabled: true  # Enable Prometheus Operator to install CRDs
+  namespace: monitoring
+  version: "55.5.0"
+  
+  prometheus:
+    retention: 15d
+    scrapeInterval: 30s
+    scrapeTimeout: 10s
+    evaluationInterval: 30s
+    
+    storage:
+      enabled: true
+      size: 20Gi
+      storageClassName: oci-bv
+    
     resources:
       requests:
         cpu: 200m
@@ -21,112 +34,75 @@ prometheus:
       limits:
         cpu: 500m
         memory: 1Gi
-    # OCI Block Volume storage
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: oci-bv
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 20Gi
-    # Retention settings
-    retention: 15d
-    retentionSize: "18GB"
+    
+    # ServiceMonitor selector - match app ServiceMonitors
+    serviceMonitorSelector:
+      matchLabels:
+        release: prometheus
+    
+    # PrometheusRule selector - match app PrometheusRules
+    ruleSelector:
+      matchLabels:
+        release: prometheus
+    
+    externalLabels:
+      cluster: oci-staging
+      environment: staging
   
-  # ServiceMonitor selector
-  serviceMonitorSelectorNilUsesHelmValues: false
-  podMonitorSelectorNilUsesHelmValues: false
-  ruleSelectorNilUsesHelmValues: false
-
-# ------------------------------------------------------------------------------
-# Grafana Configuration
-# ------------------------------------------------------------------------------
-grafana:
-  enabled: true
-  adminPassword: ""  # Use external secret
-  
-  # Resource limits
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 300m
-      memory: 512Mi
-  
-  # Persistence using OCI Block Volume
-  persistence:
+  grafana:
     enabled: true
-    storageClassName: oci-bv
-    size: 10Gi
-  
-  # Ingress
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    # UPDATE: Set your actual domain
-    hosts:
-      - grafana.adaas-il.com
-    tls:
-      - secretName: grafana-tls
-        hosts:
-          - grafana.
-    annotations:
-      cert-manager.io/cluster-issuer: "letsencrypt-prod"
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-  
-  # OIDC/Keycloak authentication
-  grafana.ini:
-    server:
-      # UPDATE: Set your actual domain
-      root_url: https://grafana.adaas-il.com
-    auth.generic_oauth:
+    adminPassword: ""  # Use external secret
+    
+    persistence:
       enabled: true
-      name: Keycloak
-      allow_sign_up: true
-      client_id: grafana
-      # client_secret from external secret
-      scopes: openid profile email groups
-      # UPDATE: Set your actual domain
-      auth_url: https://keycloak.adaas-il.com/realms/platform/protocol/openid-connect/auth
-      token_url: https://keycloak.adaas-il.com/realms/platform/protocol/openid-connect/token
-      api_url: https://keycloak.adaas-il.com/realms/platform/protocol/openid-connect/userinfo
-      role_attribute_path: contains(groups[*], '/grafana-admins') && 'Admin' || contains(groups[*], '/grafana-editors') && 'Editor' || 'Viewer'
-
-# ------------------------------------------------------------------------------
-# Alertmanager Configuration
-# ------------------------------------------------------------------------------
-alertmanager:
-  enabled: true
-  alertmanagerSpec:
+      size: 10Gi
+    
     resources:
       requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
         cpu: 100m
-        memory: 128Mi
-    storage:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: oci-bv
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 5Gi
+        memory: 256Mi
+      limits:
+        cpu: 300m
+        memory: 512Mi
+    
+    # Auto-discover dashboards from ConfigMaps
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: ALL
+    
+    # Grafana server configuration
+    grafana.ini:
+      server:
+        domain: grafana.adaas-il.com
+        root_url: "https://grafana.adaas-il.com"
+      auth.generic_oauth:
+        enabled: true
+        name: Keycloak
+        allow_sign_up: true
+        client_id: grafana
+        scopes: openid profile email groups
+        auth_url: https://keycloak.adaas-il.com/realms/platform/protocol/openid-connect/auth
+        token_url: https://keycloak.adaas-il.com/realms/platform/protocol/openid-connect/token
+        api_url: https://keycloak.adaas-il.com/realms/platform/protocol/openid-connect/userinfo
+        role_attribute_path: "contains(groups[*], '/grafana-admins') && 'Admin' || contains(groups[*], '/grafana-editors') && 'Editor' || 'Viewer'"
+        use_pkce: true
+    
+    # Load client secret from environment
+    envFromSecret: grafana-oauth-secret
+    
+    datasources:
+      loki:
+        enabled: false  # Enable when Loki is deployed
 
 # ------------------------------------------------------------------------------
-# Node Exporter
+# External Secrets Operator Monitoring
 # ------------------------------------------------------------------------------
-nodeExporter:
-  enabled: true
-
-# ------------------------------------------------------------------------------
-# Kube State Metrics
-# ------------------------------------------------------------------------------
-kubeStateMetrics:
-  enabled: true
+externalSecretsOperator:
+  monitoring:
+    enabled: false  # Enable after kube-prometheus-stack installs CRDs
 
 # ------------------------------------------------------------------------------
 # External Secrets - OCI Vault
@@ -136,5 +112,10 @@ externalSecrets:
   secretStore:
     name: oci-vault
     kind: ClusterSecretStore
-  # Consolidated OCI Vault secret name (matches Terraform application_secrets key)
   appSecretKey: "monitoring"
+
+# ------------------------------------------------------------------------------
+# Loki Stack - Phase 2
+# ------------------------------------------------------------------------------
+lokiStack:
+  enabled: false
