@@ -2,7 +2,7 @@
 # Keycloak SSO - OCI Staging Environment
 # ==============================================================================
 # Configuration for OCI deployment with:
-#   - External OCI Autonomous Database (ATP) - PostgreSQL mode
+#   - External OCI Autonomous Database (ATP) - Oracle mode
 #   - OCI Vault for admin/client secrets (consolidated 'keycloak' secret)
 #   - Let's Encrypt TLS via Cloudflare DNS01
 # ==============================================================================
@@ -39,11 +39,15 @@ keycloak:
         secretKeyRef:
           name: keycloak-admin-credentials
           key: admin-password
-    # ATP PostgreSQL connection
+    # Oracle ATP connection - Keycloak uses 'oracle' as KC_DB
     - name: KC_DB
-      value: "postgres"
+      value: "oracle"
+    # Full JDBC URL from secret (contains TNS connection descriptor)
     - name: KC_DB_URL
-      value: "jdbc:postgresql://$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=require"
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-postgres-credentials
+          key: jdbc-url
     - name: KC_DB_USERNAME
       valueFrom:
         secretKeyRef:
@@ -55,17 +59,13 @@ keycloak:
           name: keycloak-postgres-credentials
           key: password
   
-  # Extra environment variables from secrets (for DB_HOST, DB_PORT, DB_NAME)
-  extraEnvVarsSecret: keycloak-postgres-credentials
-  
   # ------------------------------------------------------------------------------
   # Disable in-cluster PostgreSQL - Using external OCI ATP
   # ------------------------------------------------------------------------------
   postgresql:
     enabled: false
   
-  # External database configuration (OCI Autonomous Database)
-  # Note: Actual host comes from KC_DB_URL env var with secret references
+  # External database configuration (OCI Autonomous Database - Oracle)
   externalDatabase:
     host: "adb.il-jerusalem-1.oraclecloud.com"
     port: 1521

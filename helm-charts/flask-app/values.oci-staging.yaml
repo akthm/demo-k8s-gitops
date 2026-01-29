@@ -11,6 +11,8 @@
 replicaCount: 2
 
 image:
+  # Full registry path required for OCI Kubernetes (short names are ambiguous)
+  repository: "docker.io/akthm/demo-back"
   tag: "stable-1"
 
 # ------------------------------------------------------------------------------
