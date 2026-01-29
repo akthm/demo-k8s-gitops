@@ -65,9 +65,12 @@ externalSecrets:
     maxRetries: 8
     retryInterval: "15s"
     retryIntervalMax: "10m"
-  # Consolidated OCI Vault secret name (matches Terraform application_secrets key)
-  # All Flask secrets in one vault secret: flask-app
-  appSecretKey: "flask-app"
+  # OCI Vault secret keys - must NOT contain slashes (OCI limitation)
+  databaseKey: "staging-backend-database"
+  flaskAppKey: "staging-backend-flask-app"
+  adminKey: "staging-backend-admin"
+  jwtKeysKey: "staging-backend-jwt-keys"
+  oidcKey: "staging-backend-oidc"
 
 # ------------------------------------------------------------------------------
 # Ingress Configuration
