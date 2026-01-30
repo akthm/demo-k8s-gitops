@@ -63,9 +63,34 @@ keycloak:
       value: "/opt/oracle/wallet"
   
   # ------------------------------------------------------------------------------
-  # Wallet Download and Extraction InitContainers
+  # Oracle JDBC Driver and Wallet InitContainers
   # ------------------------------------------------------------------------------
   initContainers:
+    # Download Oracle JDBC driver (not included in Bitnami image)
+    - name: install-oracle-driver
+      image: curlimages/curl:8.5.0
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "Downloading Oracle JDBC driver..."
+          # Download ojdbc11 from Maven Central (Oracle 21c driver, compatible with ATP)
+          curl -L -o /providers/ojdbc11.jar \
+            https://repo1.maven.org/maven2/com/oracle/database/jdbc/ojdbc11/23.3.0.23.09/ojdbc11-23.3.0.23.09.jar
+          echo "Oracle JDBC driver installed successfully"
+          ls -lh /providers/
+      volumeMounts:
+        - name: app-providers-dir
+          mountPath: /providers
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+    
     # Download wallet from OCI Object Storage using instance principal
     - name: download-wallet
       image: ghcr.io/oracle/oci-cli:latest
