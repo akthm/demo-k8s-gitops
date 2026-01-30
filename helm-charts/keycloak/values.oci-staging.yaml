@@ -83,13 +83,13 @@ keycloak:
             https://repo1.maven.org/maven2/com/oracle/database/jdbc/ojdbc11/23.3.0.23.09/ojdbc11-23.3.0.23.09.jar
           # Download oraclepki.jar (required for SSO wallet support)
           curl -L -o /providers/oraclepki.jar \
-            https://repo1.maven.org/maven2/com/oracle/database/security/oraclepki/23.3.0.23.09/oraclepki-23.3.0.23.09.jar
+            https://repo1.maven.org/maven2/com/oracle/database/security/oraclepki/21.9.0.0/oraclepki-21.9.0.0.jar
           # Download osdt_core.jar (required for SSO wallet support)
           curl -L -o /providers/osdt_core.jar \
-            https://repo1.maven.org/maven2/com/oracle/database/security/osdt_core/23.3.0.23.09/osdt_core-23.3.0.23.09.jar
+            https://repo1.maven.org/maven2/com/oracle/database/security/osdt_core/21.9.0.0/osdt_core-21.9.0.0.jar
           # Download osdt_cert.jar (required for SSL certificate handling)
           curl -L -o /providers/osdt_cert.jar \
-            https://repo1.maven.org/maven2/com/oracle/database/security/osdt_cert/23.3.0.23.09/osdt_cert-23.3.0.23.09.jar
+            https://repo1.maven.org/maven2/com/oracle/database/security/osdt_cert/21.9.0.0/osdt_cert-21.9.0.0.jar
           echo "Oracle libraries installed successfully"
           ls -lh /providers/
       volumeMounts:
@@ -176,11 +176,8 @@ keycloak:
           drop:
             - ALL
   
-  # Mount providers and wallet to main container
+  # Mount extracted wallet directory to main container
   extraVolumeMounts:
-    - name: app-providers-dir
-      mountPath: /opt/bitnami/keycloak/providers
-      readOnly: false
     - name: wallet-dir
       mountPath: /opt/oracle/wallet
       readOnly: true
