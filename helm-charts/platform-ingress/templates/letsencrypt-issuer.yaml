@@ -35,7 +35,7 @@ spec:
           email: {{ .Values.letsEncrypt.email | required "letsEncrypt.email is required" }}
           apiKeySecretRef:
             name: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token" }}
-            key: api-key
+            key: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.key | default "api-key" }}
       {{- if .Values.letsEncrypt.cloudflare.selector }}
       selector:
         {{- toYaml .Values.letsEncrypt.cloudflare.selector | nindent 8 }}

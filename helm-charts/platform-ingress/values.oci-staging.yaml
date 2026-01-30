@@ -129,5 +129,6 @@ letsEncrypt:
     secretKey: "cloudflare"
     # Secret containing Cloudflare API token
     apiTokenSecretRef:
-      name: cloudflare-api-token
+      name: CLOUDFLARE_API_TOKEN
       key: api-token
+      
