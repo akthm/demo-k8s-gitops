@@ -65,6 +65,19 @@ keycloak:
     - name: TNS_ADMIN
       value: "/opt/oracle/wallet"
   
+  # Copy Oracle JARs to providers directory at startup
+  lifecycleHooks:
+    postStart:
+      exec:
+        command:
+          - /bin/bash
+          - -c
+          - |
+            echo "Copying Oracle JDBC drivers and security libraries to providers directory..."
+            cp -v /tmp/oracle-jars/*.jar /opt/bitnami/keycloak/providers/
+            echo "Oracle libraries copied successfully"
+            ls -lh /opt/bitnami/keycloak/providers/
+  
   # ------------------------------------------------------------------------------
   # Oracle JDBC Driver and Wallet InitContainers
   # ------------------------------------------------------------------------------
@@ -176,8 +189,11 @@ keycloak:
           drop:
             - ALL
   
-  # Mount extracted wallet directory to main container
+  # Mount providers and wallet to main container
   extraVolumeMounts:
+    - name: app-providers-dir
+      mountPath: /tmp/oracle-jars
+      readOnly: true
     - name: wallet-dir
       mountPath: /opt/oracle/wallet
       readOnly: true
