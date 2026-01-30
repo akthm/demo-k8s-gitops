@@ -127,6 +127,8 @@ letsEncrypt:
     enabled: true
     # Vault secret key for Cloudflare token
     secretKey: "cloudflare"
+    # Enable Zone ID reference to skip zone discovery (more reliable)
+    zoneIdEnabled: true
     # Secret containing Cloudflare Global API Key
     apiTokenSecretRef:
       name: cloudflare-api-token
