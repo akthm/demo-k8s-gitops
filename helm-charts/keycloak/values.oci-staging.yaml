@@ -39,9 +39,9 @@ keycloak:
         secretKeyRef:
           name: keycloak-admin-credentials
           key: admin-password
-    # Oracle ATP via PostgreSQL protocol (no Oracle driver needed)
+    # Database driver selection (Oracle with wallet or PostgreSQL protocol)
     - name: KC_DB
-      value: "postgres"
+      value: "oracle"  # Using native Oracle JDBC driver with wallet
     # Full JDBC URL from secret
     - name: KC_DB_URL
       valueFrom:
@@ -58,6 +58,105 @@ keycloak:
         secretKeyRef:
           name: keycloak-postgres-credentials
           key: password
+    # TNS_ADMIN points to extracted wallet directory
+    - name: TNS_ADMIN
+      value: "/opt/oracle/wallet"
+  
+  # ------------------------------------------------------------------------------
+  # Wallet Download and Extraction InitContainers
+  # ------------------------------------------------------------------------------
+  initContainers:
+    # Download wallet from OCI Object Storage using instance principal
+    - name: download-wallet
+      image: ghcr.io/oracle/oci-cli:latest
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "Downloading ATP wallet from Object Storage..."
+          # Configure OCI CLI for instance principal auth
+          export OCI_CLI_AUTH=instance_principal
+          # Read bucket info from secret
+          BUCKET_NAME=$(cat /bucket-info/bucket_name)
+          NAMESPACE=$(cat /bucket-info/namespace)
+          OBJECT_NAME=$(cat /bucket-info/object_name)
+          REGION=$(cat /bucket-info/region)
+          
+          # Download wallet.zip
+          oci os object get \
+            --namespace "$NAMESPACE" \
+            --bucket-name "$BUCKET_NAME" \
+            --name "$OBJECT_NAME" \
+            --file /wallet-download/wallet.zip \
+            --region "$REGION" \
+            --auth instance_principal
+          
+          echo "Wallet downloaded successfully"
+          ls -lh /wallet-download/
+      volumeMounts:
+        - name: wallet-bucket-info
+          mountPath: /bucket-info
+          readOnly: true
+        - name: wallet-download
+          mountPath: /wallet-download
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+    
+    # Extract wallet.zip to /wallet directory
+    - name: extract-wallet
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "Extracting ATP wallet..."
+          mkdir -p /wallet
+          # ATP wallets downloaded via API don't require password for extraction
+          unzip -o /wallet-download/wallet.zip -d /wallet
+          # Set restrictive permissions
+          chmod 700 /wallet
+          chmod 600 /wallet/* 2>/dev/null || true
+          echo "Wallet extracted successfully"
+          ls -la /wallet/
+      volumeMounts:
+        - name: wallet-download
+          mountPath: /wallet-download
+          readOnly: true
+        - name: wallet-dir
+          mountPath: /wallet
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+  
+  # Mount extracted wallet directory to main container
+  extraVolumeMounts:
+    - name: wallet-dir
+      mountPath: /opt/oracle/wallet
+      readOnly: true
+  
+  extraVolumes:
+    # Bucket info from ExternalSecret
+    - name: wallet-bucket-info
+      secret:
+        secretName: keycloak-wallet-bucket-info
+        defaultMode: 0400
+    # EmptyDir for downloaded wallet.zip
+    - name: wallet-download
+      emptyDir: {}
+    # EmptyDir for extracted wallet
+    - name: wallet-dir
+      emptyDir: {}
   
   # ------------------------------------------------------------------------------
   # Disable in-cluster PostgreSQL - Using external OCI ATP
@@ -117,3 +216,13 @@ externalSecrets:
     kind: ClusterSecretStore
   # Consolidated OCI Vault secret name (matches Terraform application_secrets key)
   appSecretKey: "keycloak"
+
+# ------------------------------------------------------------------------------
+# Database Wallet Configuration (ATP mTLS)
+# ------------------------------------------------------------------------------
+database:
+  wallet:
+    enabled: true
+    refreshInterval: "24h"
+    # TNS alias from tnsnames.ora (extracted from wallet)
+    tnsAlias: "stagingdb_high"

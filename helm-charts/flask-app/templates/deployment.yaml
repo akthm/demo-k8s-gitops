@@ -51,6 +51,84 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.database.wallet.enabled }}
+      # Wallet Download and Extraction InitContainers
+      initContainers:
+        # Download wallet from OCI Object Storage using instance principal
+        - name: download-wallet
+          image: ghcr.io/oracle/oci-cli:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Downloading ATP wallet from Object Storage..."
+              # Configure OCI CLI for instance principal auth
+              export OCI_CLI_AUTH=instance_principal
+              # Read bucket info from secret
+              BUCKET_NAME=$(cat /bucket-info/bucket_name)
+              NAMESPACE=$(cat /bucket-info/namespace)
+              OBJECT_NAME=$(cat /bucket-info/object_name)
+              REGION=$(cat /bucket-info/region)
+              
+              # Download wallet.zip
+              oci os object get \
+                --namespace "$NAMESPACE" \
+                --bucket-name "$BUCKET_NAME" \
+                --name "$OBJECT_NAME" \
+                --file /wallet-download/wallet.zip \
+                --region "$REGION" \
+                --auth instance_principal
+              
+              echo "Wallet downloaded successfully"
+              ls -lh /wallet-download/
+          volumeMounts:
+            - name: wallet-bucket-info
+              mountPath: /bucket-info
+              readOnly: true
+            - name: wallet-download
+              mountPath: /wallet-download
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+        
+        # Extract wallet.zip to /wallet directory
+        - name: extract-wallet
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Extracting ATP wallet..."
+              mkdir -p /wallet
+              # ATP wallets downloaded via API don't require password for extraction
+              unzip -o /wallet-download/wallet.zip -d /wallet
+              # Set restrictive permissions
+              chmod 700 /wallet
+              chmod 600 /wallet/* 2>/dev/null || true
+              echo "Wallet extracted successfully"
+              ls -la /wallet/
+          volumeMounts:
+            - name: wallet-download
+              mountPath: /wallet-download
+              readOnly: true
+            - name: wallet-dir
+              mountPath: /wallet
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           {{- with .Values.securityContext }}
@@ -116,6 +194,11 @@ spec:
             - name: OIDC_GROUPS_CLAIM
               value: {{ .Values.oidc.groupsClaim | quote }}
               {{- end }}
+            {{- if .Values.database.wallet.enabled }}
+            # TNS_ADMIN points to extracted wallet directory
+            - name: TNS_ADMIN
+              value: "/opt/oracle/wallet"
+            {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
@@ -132,6 +215,12 @@ spec:
           {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if .Values.database.wallet.enabled }}
+          # Mount extracted wallet directory
+          - name: wallet-dir
+            mountPath: /opt/oracle/wallet
+            readOnly: true
+          {{- end }}
           # Mount database encryption keys as directory
           - name: db-encryption-keys
             mountPath: /run/secrets/db_encryption_keys
@@ -139,6 +228,19 @@ spec:
       volumes:
       {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.database.wallet.enabled }}
+      # Bucket info from ExternalSecret
+      - name: wallet-bucket-info
+        secret:
+          secretName: {{ include "flask-app.fullname" . }}-wallet-bucket-info
+          defaultMode: 0400
+      # EmptyDir for downloaded wallet.zip
+      - name: wallet-download
+        emptyDir: {}
+      # EmptyDir for extracted wallet
+      - name: wallet-dir
+        emptyDir: {}
       {{- end }}
       # Project db encryption keys from secret to files
       - name: db-encryption-keys

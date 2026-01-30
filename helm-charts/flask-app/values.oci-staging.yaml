@@ -71,6 +71,16 @@ externalSecrets:
   appSecretKey: "flask-app"
 
 # ------------------------------------------------------------------------------
+# Database Wallet Configuration (ATP mTLS)
+# ------------------------------------------------------------------------------
+database:
+  wallet:
+    enabled: true
+    refreshInterval: "24h"
+    # TNS alias from tnsnames.ora (extracted from wallet)
+    tnsAlias: "stagingdb_high"
+
+# ------------------------------------------------------------------------------
 # Ingress Configuration
 # ------------------------------------------------------------------------------
 ingress:
