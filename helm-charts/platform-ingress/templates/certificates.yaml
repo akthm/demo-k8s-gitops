@@ -91,7 +91,11 @@ spec:
     algorithm: RSA
     size: 2048
   issuerRef:
+    {{- if .Values.certManager.caIssuer.enabled }}
     name: {{ .Values.certManager.caIssuer.issuerName }}
+    {{- else }}
+    name: {{ .Values.certManager.clusterIssuer.name }}
+    {{- end }}
     kind: ClusterIssuer
     group: cert-manager.io
 {{- end }}
