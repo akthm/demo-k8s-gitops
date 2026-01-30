@@ -127,8 +127,7 @@ letsEncrypt:
     enabled: true
     # Vault secret key for Cloudflare token
     secretKey: "cloudflare"
-    # Secret containing Cloudflare API token
+    # Secret containing Cloudflare Global API Key
     apiTokenSecretRef:
-      name: CLOUDFLARE_API_TOKEN
-      key: api-token
-      
+      name: cloudflare-api-token
+      key: api-key
