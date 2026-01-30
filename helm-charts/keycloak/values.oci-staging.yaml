@@ -71,7 +71,7 @@ keycloak:
   initContainers:
     # Download Oracle JDBC driver (not included in Bitnami image)
     - name: install-oracle-driver
-      image: curlimages/curl:8.5.0
+      image: docker.io/curlimages/curl:8.5.0
       command:
         - sh
         - -c
