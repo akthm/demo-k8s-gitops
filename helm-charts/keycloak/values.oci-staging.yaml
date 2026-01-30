@@ -120,9 +120,6 @@ keycloak:
           mkdir -p /wallet
           # ATP wallets downloaded via API don't require password for extraction
           unzip -o /wallet-download/wallet.zip -d /wallet
-          # Set restrictive permissions
-          chmod 700 /wallet
-          chmod 600 /wallet/* 2>/dev/null || true
           echo "Wallet extracted successfully"
           ls -la /wallet/
       volumeMounts:
