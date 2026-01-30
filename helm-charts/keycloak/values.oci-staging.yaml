@@ -45,6 +45,11 @@ keycloak:
     # Oracle schema configuration (no PUBLIC schema prefix in Oracle)
     - name: KC_DB_SCHEMA
       value: "KEYCLOAK"
+    # Migration strategy: manual prevents Liquibase from auto-updating schema
+    # This is required when tables already exist from a previous installation
+    # Keycloak will validate the schema instead of trying to create tables
+    - name: KC_SPI_CONNECTIONS_JPA_LEGACY_MIGRATION_STRATEGY
+      value: "manual"
     # Oracle Net TNS_ADMIN for wallet location
     - name: JAVA_OPTS_APPEND
       value: "-Doracle.net.tns_admin=/opt/oracle/wallet"
