@@ -118,9 +118,9 @@ externalSecrets:
 # ------------------------------------------------------------------------------
 letsEncrypt:
   enabled: true
-  # UPDATE: Set your email for Let's Encrypt notifications
-  email: 
-    envFromSecret: cloudflare-email
+  # Email from OCI Vault secret (cert-manager requires literal value)
+  # Must match the email in CLOUDFLARE_EMAIL vault key
+  email: akthm.daas@gmail.com
   # Use staging for testing, prod for real certificates
   server: https://acme-v02.api.letsencrypt.org/directory
   # Cloudflare DNS01 solver

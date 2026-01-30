@@ -31,10 +31,8 @@ spec:
     - dns01:
         cloudflare:
           # Cloudflare Global API Key (legacy authentication)
-          # Requires both email and API key
-          emailSecretRef:
-            name: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token" }}
-            key: email
+          # Email must match CLOUDFLARE_EMAIL in OCI Vault
+          email: {{ .Values.letsEncrypt.email }}
           apiKeySecretRef:
             name: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token" }}
             key: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.key | default "api-key" }}
