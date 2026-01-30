@@ -183,6 +183,9 @@ keycloak:
       readOnly: true
   
   extraVolumes:
+    # EmptyDir for Oracle libraries (shared between init and main container)
+    - name: app-providers-dir
+      emptyDir: {}
     # Bucket info from ExternalSecret
     - name: wallet-bucket-info
       secret:
