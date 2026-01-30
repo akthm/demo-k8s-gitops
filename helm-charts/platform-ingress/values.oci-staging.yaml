@@ -119,7 +119,8 @@ externalSecrets:
 letsEncrypt:
   enabled: true
   # UPDATE: Set your email for Let's Encrypt notifications
-  email: akthmd@adaas-il.com
+  email: 
+    envFromSecret: cloudflare-email
   # Use staging for testing, prod for real certificates
   server: https://acme-v02.api.letsencrypt.org/directory
   # Cloudflare DNS01 solver

@@ -32,7 +32,9 @@ spec:
         cloudflare:
           # Cloudflare Global API Key (legacy authentication)
           # Requires both email and API key
-          email: {{ .Values.letsEncrypt.email | required "letsEncrypt.email is required" }}
+          emailSecretRef:
+            name: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token" }}
+            key: email
           apiKeySecretRef:
             name: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token" }}
             key: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.key | default "api-key" }}
