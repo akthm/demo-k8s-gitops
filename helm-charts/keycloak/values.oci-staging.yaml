@@ -148,7 +148,10 @@ keycloak:
           mkdir -p /wallet
           # ATP wallets downloaded via API don't require password for extraction
           unzip -o /wallet-download/wallet.zip -d /wallet
-          echo "Wallet extracted successfully"
+          # Update sqlnet.ora with absolute wallet path for Oracle JDBC
+          sed -i 's|DIRECTORY="?/network/admin"|DIRECTORY="/opt/oracle/wallet"|g' /wallet/sqlnet.ora
+          echo "Wallet extracted and configured successfully"
+          cat /wallet/sqlnet.ora
           ls -la /wallet/
       volumeMounts:
         - name: wallet-download
