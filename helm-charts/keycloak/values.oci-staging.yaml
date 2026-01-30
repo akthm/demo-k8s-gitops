@@ -28,7 +28,7 @@ keycloak:
   # Inject admin credentials from secret via extraEnvVars
   extraEnvVars:
     - name: KEYCLOAK_EXTRA_ARGS
-      value: "--features=token-exchange,admin-fine-grained-authz --spi-connections-jpa--quarkus--migration-strategy=update"
+      value: "--features=token-exchange,admin-fine-grained-authz --spi-connections-jpa--quarkus--migration-strategy=validate"
     - name: KC_BOOTSTRAP_ADMIN_USERNAME
       valueFrom:
         secretKeyRef:
