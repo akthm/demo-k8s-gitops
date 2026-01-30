@@ -176,8 +176,11 @@ keycloak:
           drop:
             - ALL
   
-  # Mount extracted wallet directory to main container
+  # Mount providers and wallet to main container
   extraVolumeMounts:
+    - name: app-providers-dir
+      mountPath: /opt/bitnami/keycloak/providers
+      readOnly: false
     - name: wallet-dir
       mountPath: /opt/oracle/wallet
       readOnly: true
