@@ -42,6 +42,9 @@ keycloak:
     # Database driver selection (Oracle with wallet or PostgreSQL protocol)
     - name: KC_DB
       value: "oracle"  # Using native Oracle JDBC driver with wallet
+    # Oracle schema configuration (no PUBLIC schema prefix in Oracle)
+    - name: KC_DB_SCHEMA
+      value: "KEYCLOAK"
     # Oracle Net TNS_ADMIN for wallet location
     - name: JAVA_OPTS_APPEND
       value: "-Doracle.net.tns_admin=/opt/oracle/wallet"
