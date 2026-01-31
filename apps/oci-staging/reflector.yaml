@@ -26,6 +26,11 @@ spec:
         nameOverride: reflector
         fullnameOverride: reflector
         
+        # Use fully qualified image name for OCI
+        image:
+          repository: docker.io/emberstack/kubernetes-reflector
+          tag: "7.1.288"
+        
         # Resource limits for OCI Always Free
         resources:
           requests:
