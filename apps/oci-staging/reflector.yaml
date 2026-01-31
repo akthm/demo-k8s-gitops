@@ -1,0 +1,55 @@
+---
+# ==============================================================================
+# Reflector - Secret/ConfigMap Replication
+# ==============================================================================
+# Automatically replicates secrets and configmaps across namespaces
+# Used to replicate wildcard TLS certificates to all namespaces
+# ==============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reflector
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://emberstack.github.io/helm-charts
+    chart: reflector
+    targetRevision: 7.1.288
+    helm:
+      values: |
+        nameOverride: reflector
+        fullnameOverride: reflector
+        
+        # Resource limits for OCI Always Free
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        
+        # Enable reflection features
+        configuration:
+          logging:
+            minimumLevel: Information
+          watcher:
+            timeout: 300
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

@@ -81,6 +81,12 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   secretName: {{ .Values.tls.secretName }}
+  secretTemplate:
+    annotations:
+      reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+      reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "argocd,monitoring,keycloak"
+      reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+      reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "argocd,monitoring,keycloak"
   duration: 8760h # 1 year
   renewBefore: 720h # 30 days
   commonName: {{ .Values.domain }}
