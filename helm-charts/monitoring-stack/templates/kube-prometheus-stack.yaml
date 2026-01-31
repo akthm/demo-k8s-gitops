@@ -70,6 +70,9 @@ spec:
           persistence:
             enabled: true
             size: {{ .Values.kubePrometheusStack.grafana.persistence.size }}
+            {{- if .Values.kubePrometheusStack.grafana.persistence.storageClassName }}
+            storageClassName: {{ .Values.kubePrometheusStack.grafana.persistence.storageClassName }}
+            {{- end }}
           {{- end }}
           
           # Auto-discover dashboards from ConfigMaps
