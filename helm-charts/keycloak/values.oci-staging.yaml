@@ -9,13 +9,52 @@
 
 keycloak:
   production: true
-  replicaCount: 1  # HA configuration for staging
+  replicaCount: 2  # Minimum replicas for HA
   
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+    
   # Distributed cache for multi-replica deployment
   cache:
     enabled: true
     stackName: ""
     stackFile: ""
+  
+  # ------------------------------------------------------------------------------
+  # High Availability - Pod Topology Spread & Anti-Affinity
+  # ------------------------------------------------------------------------------
+  # Spread pods across nodes for fault tolerance
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: keycloak
+          app.kubernetes.io/instance: keycloak
+  
+  # Prefer not to schedule pods on same node
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: keycloak
+                app.kubernetes.io/instance: keycloak
+            topologyKey: kubernetes.io/hostname
+      # Hard requirement: don't schedule on same node if possible
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloak
+              app.kubernetes.io/instance: keycloak
+          topologyKey: kubernetes.io/hostname
   
   # ------------------------------------------------------------------------------
   # Admin Credentials from OCI Vault (keycloak secret)
