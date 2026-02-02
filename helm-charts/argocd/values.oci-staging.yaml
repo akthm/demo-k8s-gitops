@@ -41,7 +41,7 @@ argocd:
       # OIDC configuration
       oidc.config: |
         name: Keycloak
-        issuer: https://keycloak.adaas-il.com/realms/platform
+        issuer: https://keycloak.adaas-il.com/realms/master
         clientID: argocd
         clientSecret: $argocd-oidc:client-secret
         requestedScopes:
