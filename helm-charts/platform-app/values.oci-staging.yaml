@@ -187,7 +187,7 @@ redis:
     persistence:
       enabled: true
       size: 1Gi
-      storageClass: ""  # Use OCI block volume default
+      storageClass: oci-bv-paravirtualized  # in transit encryption requires PV support
     
     resources:
       requests:
