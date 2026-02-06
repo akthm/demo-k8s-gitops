@@ -1,0 +1,47 @@
+{{- if and .Values.oauth2Proxy.enabled .Values.oauth2Proxy.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "platform-app.oauth2proxy.name" . }}
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth2-proxy
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "platform-app.oauth2proxy.name" . }}
+  minReplicas: {{ .Values.oauth2Proxy.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.oauth2Proxy.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.oauth2Proxy.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}
+---
+{{- if and .Values.nginxGateway.enabled .Values.nginxGateway.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "platform-app.fullname" . }}-nginx-gateway
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nginx-gateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "platform-app.fullname" . }}-nginx-gateway
+  minReplicas: {{ .Values.nginxGateway.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.nginxGateway.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.nginxGateway.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}

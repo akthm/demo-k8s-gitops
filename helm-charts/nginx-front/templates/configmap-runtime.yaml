@@ -1,4 +1,4 @@
-{{- if or .Values.keycloak.enabled .Values.runtimeConfig.enabled }}
+{{- if or .Values.keycloak.enabled .Values.runtimeConfig.enabled .Values.bff.enabled }}
 # ==============================================================================
 # Runtime Configuration for React Frontend
 # ==============================================================================
@@ -14,8 +14,16 @@ metadata:
 data:
   config.js: |
     window.__RUNTIME_CONFIG__ = {
-      {{- if .Values.keycloak.enabled }}
-      // Keycloak Configuration
+      {{- if .Values.bff.enabled }}
+      // BFF Authentication Mode - uses cookie-based auth via oauth2-proxy
+      AUTH_MODE: "bff",
+      BFF_LOGIN_URL: "{{ .Values.bff.endpoints.login }}",
+      BFF_LOGOUT_URL: "{{ .Values.bff.endpoints.logout }}",
+      BFF_USERINFO_URL: "{{ .Values.bff.endpoints.userinfo }}",
+      BFF_CSRF_URL: "{{ .Values.bff.endpoints.csrf }}",
+      {{- else if .Values.keycloak.enabled }}
+      // Keycloak Configuration (direct PKCE auth)
+      AUTH_MODE: "keycloak",
       KEYCLOAK_URL: "{{ .Values.keycloak.url }}",
       KEYCLOAK_REALM: "{{ .Values.keycloak.realm }}",
       KEYCLOAK_CLIENT_ID: "{{ .Values.keycloak.clientId }}",
@@ -34,7 +42,7 @@ data:
       API_BASE_URL: "{{ .Values.backend.path }}"
     };
   
-  # Silent SSO check HTML page for Keycloak
+  # Silent SSO check HTML page for Keycloak (only needed for direct Keycloak auth)
   silent-check-sso.html: |
     <!DOCTYPE html>
     <html>

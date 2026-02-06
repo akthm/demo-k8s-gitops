@@ -1,0 +1,190 @@
+{{- if .Values.networkPolicy.enabled }}
+# ==============================================================================
+# Network Policies for Platform App
+# ==============================================================================
+# These policies enforce network segmentation:
+# - Only ingress controller can reach nginx-gateway
+# - nginx-gateway can reach oauth2-proxy, backend, frontend
+# - oauth2-proxy can reach Redis and egress to Keycloak
+# - Backend can reach database and oauth2-proxy (for token validation)
+# - Frontend is isolated (only receives traffic from nginx-gateway)
+# ==============================================================================
+
+---
+# Nginx Gateway Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform-app.fullname" . }}-nginx-gateway
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nginx-gateway
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "platform-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: nginx-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            {{- toYaml .Values.networkPolicy.ingressController.namespaceSelector | nindent 12 }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+    {{- if .Values.networkPolicy.monitoring.enabled }}
+    # Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            {{- toYaml .Values.networkPolicy.monitoring.namespaceSelector | nindent 12 }}
+      ports:
+        - protocol: TCP
+          port: 8080
+    {{- end }}
+  egress:
+    # Allow traffic to oauth2-proxy
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "platform-app.oauth2proxy.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 4180
+    # Allow traffic to backend
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ .Release.Name }}-backend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.backend.service.port }}
+    # Allow traffic to frontend
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ .Release.Name }}-frontend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.frontend.service.port }}
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+---
+# OAuth2 Proxy Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform-app.oauth2proxy.name" . }}
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth2-proxy
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "platform-app.oauth2proxy.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from nginx-gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "platform-app.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: nginx-gateway
+      ports:
+        - protocol: TCP
+          port: 4180
+    {{- if .Values.networkPolicy.monitoring.enabled }}
+    # Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            {{- toYaml .Values.networkPolicy.monitoring.namespaceSelector | nindent 12 }}
+      ports:
+        - protocol: TCP
+          port: 44180
+    {{- end }}
+  egress:
+    # Allow traffic to Redis
+    {{- if and .Values.redis.enabled (not .Values.global.bff.redis.external.enabled) }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - protocol: TCP
+          port: 6379
+    {{- end }}
+    # Allow egress to Keycloak (external)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+---
+# Redis Network Policy (if internal Redis is used)
+{{- if and .Values.redis.enabled (not .Values.global.bff.redis.external.enabled) }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform-app.fullname" . }}-redis
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic only from oauth2-proxy
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "platform-app.oauth2proxy.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 6379
+  egress:
+    # Redis only needs DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+{{- end }}
+
+{{- end }}

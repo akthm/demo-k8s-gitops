@@ -112,3 +112,24 @@ runtimeConfig:
     # API_BASE_URL: "/api"
     # FEATURE_FLAGS: "flag1,flag2"
 
+# ==============================================================================
+# BFF (Backend-for-Frontend) Mode Configuration
+# ==============================================================================
+# When deployed via the platform-app umbrella chart with oauth2-proxy,
+# the frontend uses cookie-based auth instead of keycloak-js.
+# This simplifies the frontend - no token management needed.
+# ==============================================================================
+bff:
+  enabled: false  # Enable when deploying via platform-app umbrella chart
+  
+  # Auth endpoints (served by nginx gateway -> oauth2-proxy)
+  endpoints:
+    login: "/auth/login"
+    logout: "/auth/logout"
+    userinfo: "/auth/userinfo"
+    csrf: "/auth/csrf"
+  
+  # Inject BFF-specific runtime config
+  runtimeConfig:
+    AUTH_MODE: "bff"
+    # Frontend uses these endpoints instead of keycloak-js

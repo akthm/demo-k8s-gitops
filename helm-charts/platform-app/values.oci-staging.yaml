@@ -1,0 +1,506 @@
+# ==============================================================================
+# Platform App - OCI Staging Environment
+# ==============================================================================
+# Unified configuration for OCI deployment with:
+#   - BFF (Backend-for-Frontend) pattern with oauth2-proxy
+#   - OCI Autonomous Database (ATP) with wallet-based mTLS
+#   - OCI Vault for secrets management (via External Secrets Operator)
+#   - Redis for oauth2-proxy session storage
+#   - Keycloak SSO integration
+#   - Let's Encrypt TLS via Cloudflare DNS01
+# ==============================================================================
+
+# ==============================================================================
+# Global Configuration
+# ==============================================================================
+global:
+  # OCI-specific image registry (use full paths)
+  imageRegistry: "docker.io"
+  
+  # OCI environment
+  environment: "oci-staging"
+  
+  # Security settings
+  security:
+    allowInsecureImages: true  # Allow bitnamilegacy images
+  
+  # Keycloak SSO Configuration
+  keycloak:
+    # UPDATE: Set your actual domain
+    url: "https://keycloak.adaas-il.com"
+    realm: "platform"
+    adminUrl: "https://keycloak.adaas-il.com"
+  
+  # BFF Pattern Configuration
+  bff:
+    enabled: true
+    # Cookie settings for production
+    cookieDomain: ".adaas-il.com"
+    cookieSecure: true
+    sessionTTL: "8h"
+  
+  # External Secrets Configuration - OCI Vault
+  externalSecrets:
+    enabled: true
+    secretStore:
+      name: "oci-vault"
+      kind: "ClusterSecretStore"
+    refreshInterval: "10m"
+    retrySettings:
+      maxRetries: 8
+      retryInterval: "15s"
+      retryIntervalMax: "10m"
+
+# ==============================================================================
+# OAuth2 Proxy Configuration
+# ==============================================================================
+oauth2Proxy:
+  enabled: true
+  
+  replicaCount: 2
+  
+  image:
+    repository: quay.io/oauth2-proxy/oauth2-proxy
+    tag: "v7.6.0"
+  
+  # OCI Keycloak OIDC configuration
+  config:
+    provider: "oidc"
+    # UPDATE: Set your actual domain
+    oidcIssuerUrl: "https://keycloak.adaas-il.com/realms/platform"
+    clientId: "platform-bff"
+    scope: "openid profile email groups"
+    emailDomains:
+      - "*"
+    passAccessToken: true
+    passAuthorizationHeader: true
+    setXAuthRequest: true
+    setAuthorizationHeader: true
+    passUserHeaders: true
+    
+    # Cookie configuration for OCI production
+    cookieName: "_oauth2_proxy"
+    cookieSecure: true
+    cookieDomain: ".adaas-il.com"
+    cookieSameSite: "lax"
+    cookieExpire: "8h"
+    cookieRefresh: "30m"
+    
+    # Session storage via Redis
+    sessionStoreType: "redis"
+    redisConnectionUrl: ""  # Uses internal Redis
+    
+    # Security settings
+    skipProviderButton: true
+    proxyPrefix: "/oauth2"
+  
+  # Use External Secret for client credentials
+  externalSecret:
+    enabled: true
+    secretStoreRef:
+      name: "oci-vault"
+      kind: "ClusterSecretStore"
+    refreshInterval: "10m"
+    remoteRef:
+      key: "platform-bff"
+      property: ""
+    # Map from vault secret structure
+    dataMapping:
+      clientSecret: "client-secret"
+      cookieSecret: "cookie-secret"
+  
+  # Resources sized for OCI
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  
+  # Pod distribution for HA
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: oauth2-proxy
+
+# ==============================================================================
+# Nginx Gateway (BFF Routing)
+# ==============================================================================
+nginxGateway:
+  enabled: true
+  
+  replicaCount: 2
+  
+  image:
+    repository: nginx
+    tag: "1.27-alpine"
+  
+  service:
+    type: ClusterIP
+    port: 80
+  
+  # Rate limiting for production
+  rateLimit:
+    enabled: true
+    requestsPerSecond: "50r/s"
+    burst: 100
+    nodelay: true
+  
+  # CSRF protection
+  csrf:
+    enabled: true
+    cookieName: "XSRF-TOKEN"
+    headerName: "X-CSRF-Token"
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ==============================================================================
+# Redis Session Storage
+# ==============================================================================
+redis:
+  enabled: true
+  architecture: standalone
+  
+  auth:
+    enabled: true
+    existingSecret: ""
+    existingSecretPasswordKey: ""
+  
+  master:
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: ""  # Use OCI block volume default
+    
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+  
+  # Security
+  commonConfiguration: |-
+    maxmemory 200mb
+    maxmemory-policy allkeys-lru
+    timeout 300
+    tcp-keepalive 60
+
+# ==============================================================================
+# Backend (Flask App) Configuration
+# ==============================================================================
+backend:
+  enabled: true
+  
+  replicaCount: 2
+  
+  image:
+    # Full registry path for OCI
+    repository: "docker.io/akthm/demo-back"
+    tag: "1.1.3"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+  
+  # ------------------------------------------------------------------------------
+  # Disable in-cluster MySQL - Using external OCI ATP
+  # ------------------------------------------------------------------------------
+  db:
+    enabled: false
+  
+  # ------------------------------------------------------------------------------
+  # Oracle ATP Database Wallet Configuration
+  # ------------------------------------------------------------------------------
+  database:
+    wallet:
+      enabled: true
+      tnsAlias: "stagingdb_high"
+      refreshInterval: "24h"
+  
+  # ------------------------------------------------------------------------------
+  # External Secrets - OCI Vault
+  # ------------------------------------------------------------------------------
+  externalSecrets:
+    enabled: true
+    secretStoreRef:
+      name: "oci-vault"
+      kind: "ClusterSecretStore"
+    refreshInterval: "10m"
+    retrySettings:
+      maxRetries: 8
+      retryInterval: "15s"
+      retryIntervalMax: "10m"
+    appSecretKey: "flask-app"
+  
+  # ------------------------------------------------------------------------------
+  # BFF Mode Configuration
+  # ------------------------------------------------------------------------------
+  config:
+    DEBUG: "0"
+    DOCKERIZED: "true"
+    GUNICORN_WORKERS: "4"
+    BACKEND_PORT: "5000"
+    # UPDATE: Set your actual domain
+    CORS_ORIGINS: "https://app.adaas-il.com,https://adaas-il.com"
+    SQLALCHEMY_TRACK_MODIFICATIONS: "False"
+    JWT_ACCESS_TTL: "900"
+    JWT_REFRESH_TTL: "2592000"
+    JWT_COOKIE_NAME: "rt"
+    JWT_CSRF_COOKIE: "csrf_refresh_root"
+    JWT_COOKIE_SECURE: "true"
+    JWT_COOKIE_SAMESITE: "Lax"
+    JWT_COOKIE_DOMAIN: ""
+    JWT_LEEWAY: "30"
+    API_TEST_MODE: "false"
+    DB_FALLBACK_TO_SQLITE_IN_MEMORY: "false"
+    # PostgreSQL for OCI ATP
+    DB_TYPE: "postgresql"
+    # Encryption settings
+    DB_ENCRYPTION_ENABLED: "true"
+    DB_ENCRYPTION_ALGORITHM: "FERNET"
+    DB_ENCRYPTION_KEY_ROTATION_GRACE_PERIOD: "86400"
+    DATABASE_ENCRYPTION_KEYS_DIR: "/run/secrets/db_encryption_keys"
+    DB_ENCRYPTED_FIELDS: "email,phone,medical_notes,patient_name"
+    # BFF Mode
+    AUTH_MODE: "bff"
+    BFF_INTERNAL_SECRET_HEADER: "X-Internal-Auth"
+    BFF_HEADER_SUB: "X-Auth-Request-User"
+    BFF_HEADER_EMAIL: "X-Auth-Request-Email"
+    BFF_HEADER_USERNAME: "X-Auth-Request-Preferred-Username"
+    BFF_HEADER_GROUPS: "X-Auth-Request-Groups"
+    BFF_TOKEN_HEADER: "X-Forwarded-Access-Token"
+    BFF_VALIDATE_JWT: "true"
+    BFF_JIT_PROVISION: "true"
+    BFF_ROLES_SOURCE: "jwt"
+    CSRF_ENABLED: "true"
+    CSRF_COOKIE_NAME: "XSRF-TOKEN"
+    CSRF_HEADER_NAME: "X-CSRF-Token"
+  
+  # ------------------------------------------------------------------------------
+  # OIDC/Keycloak Integration (for JWT validation)
+  # ------------------------------------------------------------------------------
+  oidc:
+    enabled: true
+    # UPDATE: Set your actual domain
+    issuer: "https://keycloak.adaas-il.com/realms/platform"
+    clientId: "flask-backend"
+    scopes: "openid profile email groups"
+    audience: "flask-backend"
+    algorithms: ["RS256"]
+    groupsClaim: "groups"
+    roleMapping:
+      "/platform-admins": "admin"
+      "/developers": "developer"
+    existingSecret: "flask-app-oidc"
+  
+  # ------------------------------------------------------------------------------
+  # JWT Configuration
+  # ------------------------------------------------------------------------------
+  jwt:
+    enabled: true
+    algorithm: RS256
+    # UPDATE: Set your actual domain
+    issuer: "https://api.adaas-il.com"
+    audience: "flask-backend"
+    existingSecret: "flask-app-jwt-keys"
+    privateKeyKey: "JWT_PRIVATE_KEY"
+    publicKeyKey: "JWT_PUBLIC_KEY"
+    createSecret: false
+  
+  # ------------------------------------------------------------------------------
+  # Rotation Configuration
+  # ------------------------------------------------------------------------------
+  rotation:
+    jwt:
+      enabled: true
+      schedule: "0 2 * * 0"  # Weekly on Sunday at 2 AM
+      gracePeriodDays: 7
+      retention: 2
+      serviceAccount:
+        create: true
+        name: "flask-app-jwt-rotator"
+    database:
+      enabled: true
+      schedule: "0 3 1 * *"  # Monthly on 1st day at 3 AM
+      gracePeriodDays: 30
+      retention: 2
+      batchSize: 100
+      keyVersions: ["v1"]
+      serviceAccount:
+        create: true
+        name: "flask-app-db-key-rotator"
+    reloader:
+      enabled: true
+      autoRestart: true
+  
+  # ------------------------------------------------------------------------------
+  # Monitoring
+  # ------------------------------------------------------------------------------
+  monitoring:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 15s
+      scrapeTimeout: 10s
+      labels:
+        release: prometheus
+    prometheusRule:
+      enabled: true
+      labels:
+        release: prometheus
+  
+  # ------------------------------------------------------------------------------
+  # Resources - Sized for OCI
+  # ------------------------------------------------------------------------------
+  resources:
+    requests:
+      cpu: 200m
+      memory: 384Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+  
+  # Pod Security
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    fsGroupChangePolicy: "OnRootMismatch"
+  
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false
+
+# ==============================================================================
+# Frontend (Nginx) Configuration
+# ==============================================================================
+frontend:
+  enabled: true
+  
+  replicaCount: 2
+  
+  image:
+    # Full registry path for OCI
+    repository: "docker.io/akthm/demo-front"
+    tag: "1.0.3"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+  
+  # Keycloak direct auth disabled - using BFF pattern
+  keycloak:
+    enabled: false
+  
+  # BFF mode enabled
+  bff:
+    enabled: true
+    runtimeConfig:
+      authMode: "bff"
+      # UPDATE: Set your actual domain
+      apiBaseUrl: "https://app.adaas-il.com/api"
+      csrfEnabled: true
+      csrfCookieName: "XSRF-TOKEN"
+      csrfHeaderName: "X-CSRF-Token"
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ==============================================================================
+# Ingress Configuration
+# ==============================================================================
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  # UPDATE: Set your actual domain
+  hosts:
+    - host: "app.adaas-il.com"
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /oauth2
+          pathType: Prefix
+          service: oauth2-proxy
+  tls:
+    - secretName: "platform-app-tls"
+      hosts:
+        - "app.adaas-il.com"
+
+# ==============================================================================
+# Network Policies
+# ==============================================================================
+networkPolicy:
+  enabled: true
+  # Allow ingress from NGINX ingress controller
+  allowIngressFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+  # Allow monitoring from prometheus namespace
+  allowMonitoringFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+
+# ==============================================================================
+# Service Account
+# ==============================================================================
+serviceAccount:
+  create: true
+  annotations:
+    # Add OCI workload identity annotation if using IRSA-like setup
+    # oci.oraclecloud.com/workload-identity-principal: "<OCID>"
+  name: ""
+
+# ==============================================================================
+# Pod Disruption Budget
+# ==============================================================================
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# ==============================================================================
+# Horizontal Pod Autoscaler
+# ==============================================================================
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80

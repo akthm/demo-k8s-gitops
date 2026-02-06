@@ -191,6 +191,42 @@ spec:
             - name: OIDC_GROUPS_CLAIM
               value: {{ .Values.oidc.groupsClaim | quote }}
               {{- end }}
+              {{- if .Values.bff.enabled }}
+            # ================================================================
+            # BFF (Backend-for-Frontend) Authentication Mode
+            # ================================================================
+            - name: AUTH_MODE
+              value: "bff"
+            - name: BFF_INTERNAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.bff.internalSecretRef.name | quote }}
+                  key: {{ .Values.bff.internalSecretRef.key | quote }}
+            - name: BFF_INTERNAL_SECRET_HEADER
+              value: {{ .Values.bff.headers.internalAuth | quote }}
+            - name: BFF_HEADER_SUB
+              value: {{ .Values.bff.headers.sub | quote }}
+            - name: BFF_HEADER_EMAIL
+              value: {{ .Values.bff.headers.email | quote }}
+            - name: BFF_HEADER_USERNAME
+              value: {{ .Values.bff.headers.username | quote }}
+            - name: BFF_HEADER_GROUPS
+              value: {{ .Values.bff.headers.groups | quote }}
+            - name: BFF_TOKEN_HEADER
+              value: {{ .Values.bff.headers.token | quote }}
+            - name: BFF_VALIDATE_JWT
+              value: {{ .Values.bff.validateJwt | quote }}
+            - name: BFF_JIT_PROVISION
+              value: {{ .Values.bff.jitProvision | quote }}
+            - name: BFF_ROLES_SOURCE
+              value: {{ .Values.bff.rolesSource | quote }}
+            - name: CSRF_ENABLED
+              value: {{ .Values.bff.csrf.enabled | quote }}
+            - name: CSRF_COOKIE_NAME
+              value: {{ .Values.bff.csrf.cookieName | quote }}
+            - name: CSRF_HEADER_NAME
+              value: {{ .Values.bff.csrf.headerName | quote }}
+              {{- end }}
             {{- if .Values.database.wallet.enabled }}
             # TNS_ADMIN points to extracted wallet directory
             - name: TNS_ADMIN

@@ -1,0 +1,72 @@
+1. Get the application URL by running these commands:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  {{- $domain := $host.host | default $.Values.global.domain }}
+  {{- if $.Values.global.tls.enabled }}
+  https://{{ $domain }}
+  {{- else }}
+  http://{{ $domain }}
+  {{- end }}
+{{- end }}
+{{- else }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "platform-app.name" . }},app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=nginx-gateway" -o jsonpath="{.items[0].metadata.name}")
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:8080
+  echo "Visit http://localhost:8080"
+{{- end }}
+
+2. BFF Authentication is {{ if .Values.global.bff.enabled }}ENABLED{{ else }}DISABLED{{ end }}
+{{- if .Values.global.bff.enabled }}
+   - OAuth2 Proxy handles Keycloak OIDC authentication
+   - Sessions stored in Redis
+   - Login URL: /auth/login
+   - Logout URL: /auth/logout
+   - User Info: /auth/userinfo
+{{- end }}
+
+3. Keycloak Configuration:
+   - URL: {{ .Values.global.keycloak.url }}
+   - Realm: {{ .Values.global.keycloak.realm }}
+   - BFF Client: {{ .Values.global.keycloak.bffClientId }}
+
+4. Components deployed:
+{{- if .Values.nginxGateway.enabled }}
+   ✓ Nginx Gateway (BFF)
+{{- end }}
+{{- if .Values.oauth2Proxy.enabled }}
+   ✓ OAuth2 Proxy
+{{- end }}
+{{- if .Values.backend.enabled }}
+   ✓ Flask Backend
+{{- end }}
+{{- if .Values.frontend.enabled }}
+   ✓ React Frontend
+{{- end }}
+{{- if .Values.redis.enabled }}
+   ✓ Redis (internal)
+{{- else if .Values.global.bff.redis.external.enabled }}
+   ✓ Redis (external)
+{{- end }}
+
+5. To check the status of all pods:
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+6. To view logs:
+   # OAuth2 Proxy logs
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=oauth2-proxy -f
+   
+   # Backend logs
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ .Release.Name }}-backend -f
+
+{{- if not .Values.global.externalSecrets.enabled }}
+
+⚠️  WARNING: External Secrets are DISABLED
+   You must manually set the following secrets:
+   - {{ include "platform-app.oauth2proxy.secretName" . }} (client-secret, cookie-secret)
+   - {{ include "platform-app.bff.internalSecretName" . }} (internal-secret)
+   
+   Generate secrets with:
+   kubectl create secret generic {{ include "platform-app.oauth2proxy.secretName" . }} \
+     --from-literal=client-secret=YOUR_KEYCLOAK_CLIENT_SECRET \
+     --from-literal=cookie-secret=$(openssl rand -base64 32 | head -c 32) \
+     -n {{ .Release.Namespace }}
+{{- end }}

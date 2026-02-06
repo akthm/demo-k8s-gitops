@@ -1,0 +1,102 @@
+{{- if .Values.oauth2Proxy.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "platform-app.oauth2proxy.name" . }}-config
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth2-proxy
+data:
+  oauth2-proxy.cfg: |
+    # ==============================================================================
+    # OAuth2 Proxy Configuration for BFF Pattern
+    # ==============================================================================
+    # This configuration enables the Backend-for-Frontend authentication pattern
+    # with Keycloak as the OIDC provider and Redis for session storage.
+    # ==============================================================================
+
+    # HTTP Server Configuration
+    http_address = "0.0.0.0:4180"
+    metrics_address = "0.0.0.0:44180"
+
+    # Provider Configuration
+    provider = "{{ .Values.oauth2Proxy.config.provider }}"
+    provider_display_name = "{{ .Values.oauth2Proxy.config.providerDisplayName }}"
+
+    # OIDC Configuration (values injected via environment variables)
+    # OAUTH2_PROXY_OIDC_ISSUER_URL - set via env
+    # OAUTH2_PROXY_CLIENT_ID - set via env
+    # OAUTH2_PROXY_CLIENT_SECRET - set via env
+
+    # Scopes
+    scope = "{{ .Values.global.keycloak.scopes }}"
+
+    # Email domains (allow all)
+    {{- range .Values.oauth2Proxy.config.emailDomains }}
+    email_domains = "{{ . }}"
+    {{- end }}
+
+    # PKCE (Proof Key for Code Exchange)
+    code_challenge_method = "{{ .Values.oauth2Proxy.config.codeChallengeMethod }}"
+
+    # Cookie Configuration
+    cookie_name = "{{ .Values.global.bff.cookie.name }}"
+    cookie_secure = {{ .Values.global.bff.cookie.secure }}
+    cookie_httponly = {{ .Values.global.bff.cookie.httpOnly }}
+    cookie_samesite = "{{ .Values.global.bff.cookie.sameSite }}"
+    cookie_expire = "{{ .Values.oauth2Proxy.config.cookieExpire }}"
+    cookie_refresh = "{{ .Values.oauth2Proxy.config.cookieRefresh }}"
+    {{- if .Values.global.tls.enabled }}
+    cookie_domains = ".{{ .Values.global.domain }}"
+    {{- end }}
+
+    # Session Store (Redis)
+    # session_store_type - set via env (redis)
+    # redis_connection_url - set via env
+
+    # Upstream Configuration
+    # Note: We use nginx as reverse proxy, not oauth2-proxy upstream
+    # oauth2-proxy is only used for auth validation via auth_request
+    upstreams = ["static://202"]
+
+    # Authentication Behavior
+    skip_auth_routes = [
+      {{- range $i, $path := .Values.oauth2Proxy.config.skipAuthPaths }}
+      {{- if $i }},{{ end }}
+      "{{ $path }}"
+      {{- end }}
+    ]
+
+    # Pass identity to upstream via headers
+    pass_authorization_header = {{ .Values.oauth2Proxy.config.passAuthorizationHeader }}
+    pass_access_token = {{ .Values.oauth2Proxy.config.passAccessToken }}
+    pass_user_headers = {{ .Values.oauth2Proxy.config.passUserHeaders }}
+    set_xauthrequest = {{ .Values.oauth2Proxy.config.setXAuthRequest }}
+    set_authorization_header = {{ .Values.oauth2Proxy.config.setAuthorizationHeader }}
+
+    # Headers to pass user info
+    # X-Auth-Request-User: sub claim
+    # X-Auth-Request-Email: email claim
+    # X-Auth-Request-Preferred-Username: preferred_username claim
+    # X-Auth-Request-Groups: groups claim
+    # X-Auth-Request-Access-Token: access token
+
+    # Reverse proxy headers
+    reverse_proxy = true
+    real_client_ip_header = "X-Forwarded-For"
+
+    {{- if .Values.oauth2Proxy.config.allowedGroups }}
+    # Allowed groups (optional access restriction)
+    {{- range .Values.oauth2Proxy.config.allowedGroups }}
+    allowed_groups = "{{ . }}"
+    {{- end }}
+    {{- end }}
+
+    # Logging
+    standard_logging = true
+    request_logging = true
+    auth_logging = true
+
+    # Silence auth ping spam
+    silence_ping_logging = true
+{{- end }}

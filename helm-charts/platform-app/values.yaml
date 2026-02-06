@@ -1,0 +1,445 @@
+# ==============================================================================
+# Platform App - Unified Helm Chart Values
+# ==============================================================================
+# This umbrella chart combines:
+#   - Flask backend API (BFF mode with header-based auth)
+#   - Nginx frontend serving React SPA  
+#   - OAuth2-Proxy for Keycloak OIDC authentication
+#   - Redis for session storage
+# ==============================================================================
+
+# Chart name overrides
+nameOverride: ""
+fullnameOverride: ""
+
+# ==============================================================================
+# Global Configuration
+# ==============================================================================
+# Values under 'global' are passed to all subcharts
+# ==============================================================================
+global:
+  # Domain for the application (used for ingress, CORS, cookies)
+  domain: "platform.example.com"
+  
+  # Namespace (can be overridden per subchart)
+  namespace: "platform"
+  
+  # Image registry override (useful for OCI/private registries)
+  imageRegistry: ""
+  
+  # TLS configuration
+  tls:
+    enabled: true
+    secretName: "platform-tls"
+  
+  # Environment identifier
+  environment: "staging"  # local, staging, oci-staging, production
+  
+  # Security settings
+  security:
+    # Allow non-standard container images (e.g., bitnamilegacy)
+    allowInsecureImages: false
+  
+  # ============================================================================
+  # Keycloak/OIDC Configuration
+  # ============================================================================
+  keycloak:
+    enabled: true
+    
+    # Keycloak server URL (accessible from both browser and cluster)
+    url: "https://keycloak.example.com"
+    
+    # Realm name
+    realm: "platform"
+    
+    # BFF client (confidential - used by oauth2-proxy)
+    bffClientId: "bff-proxy"
+    # Client secret provided via external secrets or directly
+    bffClientSecretRef:
+      name: ""  # If set, uses existing secret
+      key: "client-secret"
+    
+    # Public client for direct frontend auth (fallback/optional)
+    publicClientId: "react-frontend"
+    
+    # Backend client (confidential - for service-to-service)
+    backendClientId: "flask-backend"
+    backendClientSecretRef:
+      name: ""
+      key: "client-secret"
+    
+    # Scopes to request
+    scopes: "openid profile email groups"
+    
+    # PKCE settings for public client
+    pkce:
+      enabled: true
+      method: "S256"
+  
+  # ============================================================================
+  # BFF (Backend for Frontend) Configuration
+  # ============================================================================
+  bff:
+    enabled: true
+    
+    # Internal secret for nginx -> backend trust
+    internalSecret: ""  # Set via external secrets or --set
+    internalSecretRef:
+      name: ""  # If set, uses existing secret
+      key: "internal-secret"
+    
+    # Session cookie settings
+    cookie:
+      name: "__Host-bff-session"
+      secure: true  # Set to false for local dev without HTTPS
+      httpOnly: true
+      sameSite: "Lax"
+      expire: "168h"  # 7 days
+    
+    # Redis session storage
+    redis:
+      enabled: true
+      # Use external Redis (e.g., ElastiCache, Redis Cloud)
+      external:
+        enabled: false
+        url: ""  # redis://host:port or rediss://host:port for TLS
+      # Internal Redis settings (bitnami/redis subchart)
+      auth:
+        enabled: false
+        password: ""
+      persistence:
+        enabled: true
+        size: "1Gi"
+  
+  # ============================================================================
+  # External Secrets Configuration
+  # ============================================================================
+  externalSecrets:
+    enabled: false
+    secretStoreRef:
+      name: "aws-secrets-manager"
+      kind: "ClusterSecretStore"
+    refreshInterval: "5m"
+    # Base path in secrets manager
+    basePath: "staging/platform"
+
+# ==============================================================================
+# OAuth2 Proxy Configuration
+# ==============================================================================
+oauth2Proxy:
+  enabled: true
+  
+  image:
+    repository: quay.io/oauth2-proxy/oauth2-proxy
+    tag: "v7.6.0"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 2
+  
+  service:
+    type: ClusterIP
+    port: 4180
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  
+  # OAuth2 Proxy specific settings
+  config:
+    # Provider configuration
+    provider: "oidc"
+    providerDisplayName: "Keycloak"
+    
+    # Email/username extraction
+    emailDomains:
+      - "*"
+    
+    # Pass authorization headers to upstream
+    passAuthorizationHeader: true
+    passAccessToken: true
+    passUserHeaders: true
+    setXAuthRequest: true
+    setAuthorizationHeader: true
+    
+    # PKCE (recommended for OIDC)
+    codeChallenge: true
+    codeChallengeMethod: "S256"
+    
+    # Cookie settings (use global.bff.cookie values)
+    cookieRefresh: "1h"
+    cookieExpire: "168h"  # 7 days
+    
+    # Skip auth for these paths
+    skipAuthPaths:
+      - "/health"
+      - "/ready"
+      - "/metrics"
+    
+    # Allowed groups (optional - set to restrict access)
+    allowedGroups: []
+    
+    # Extra audiences to validate (Keycloak default clients)
+    oidcExtraAudiences:
+      - "master-realm"
+      - "broker"
+      - "account"
+  
+  # Pod configuration
+  podAnnotations: {}
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  # Autoscaling
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# ==============================================================================
+# Backend (Flask) Subchart Configuration
+# ==============================================================================
+backend:
+  enabled: true
+  
+  # These values are passed to the flask-app subchart
+  # See helm-charts/flask-app/values.yaml for all options
+  
+  replicaCount: 2
+  
+  image:
+    repository: akthm/demo-back
+    tag: "1.0.14"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+  
+  # Oracle ATP Database Wallet Configuration (disabled by default - uses MySQL)
+  database:
+    wallet:
+      enabled: false
+      tnsAlias: ""
+      refreshInterval: "24h"
+  
+  # BFF mode configuration (injected into configmap)
+  config:
+    AUTH_MODE: "bff"
+    BFF_INTERNAL_SECRET_HEADER: "X-Internal-Auth"
+    BFF_HEADER_SUB: "X-Auth-Request-User"
+    BFF_HEADER_EMAIL: "X-Auth-Request-Email"
+    BFF_HEADER_USERNAME: "X-Auth-Request-Preferred-Username"
+    BFF_HEADER_GROUPS: "X-Auth-Request-Groups"
+    BFF_TOKEN_HEADER: "X-Forwarded-Access-Token"
+    BFF_VALIDATE_JWT: "true"
+    BFF_JIT_PROVISION: "true"
+    BFF_ROLES_SOURCE: "jwt"
+    CSRF_ENABLED: "true"
+    CSRF_COOKIE_NAME: "XSRF-TOKEN"
+    CSRF_HEADER_NAME: "X-CSRF-Token"
+  
+  # OIDC still needed for JWT validation (defense-in-depth)
+  oidc:
+    enabled: true
+  
+  # Resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ==============================================================================
+# Frontend (Nginx) Subchart Configuration  
+# ==============================================================================
+frontend:
+  enabled: true
+  
+  # These values are passed to the nginx-front subchart
+  # See helm-charts/nginx-front/values.yaml for all options
+  
+  replicaCount: 2
+  
+  image:
+    repository: akthm/demo-front
+    tag: "1.0.3"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+  
+  # Keycloak settings for direct auth (when BFF is disabled)
+  keycloak:
+    enabled: false  # Disabled when using BFF pattern
+  
+  # BFF mode - nginx proxies through oauth2-proxy
+  bff:
+    enabled: true
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ==============================================================================
+# Redis Subchart Configuration (Bitnami)
+# ==============================================================================
+redis:
+  enabled: true
+  
+  # Use standalone architecture for simplicity
+  architecture: standalone
+  
+  auth:
+    enabled: false  # Enable with password for production
+  
+  master:
+    persistence:
+      enabled: true
+      size: 1Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+# ==============================================================================
+# Nginx BFF Gateway Configuration
+# ==============================================================================
+# This nginx sits in front of everything and handles:
+#   - Authentication via oauth2-proxy (auth_request)
+#   - Routing to backend API
+#   - Serving frontend static files
+#   - Security headers, rate limiting, CORS
+# ==============================================================================
+nginxGateway:
+  enabled: true
+  
+  image:
+    repository: nginx
+    tag: "1.27-alpine"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 2
+  
+  service:
+    type: ClusterIP
+    port: 80
+  
+  # Rate limiting
+  rateLimiting:
+    api:
+      rate: "10r/s"
+      burst: 20
+    auth:
+      rate: "5r/s"
+      burst: 10
+  
+  # Security headers
+  securityHeaders:
+    xFrameOptions: "SAMEORIGIN"
+    xContentTypeOptions: "nosniff"
+    xXssProtection: "1; mode=block"
+    referrerPolicy: "strict-origin-when-cross-origin"
+  
+  # Timeouts
+  timeouts:
+    connect: "60s"
+    send: "60s"
+    read: "60s"
+  
+  # Client body size
+  clientMaxBodySize: "10M"
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# ==============================================================================
+# Ingress Configuration
+# ==============================================================================
+ingress:
+  enabled: true
+  className: "nginx"
+  
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # Security headers at ingress level
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-Content-Type-Options: nosniff";
+  
+  # Single host pointing to nginx gateway
+  hosts:
+    - host: ""  # Use global.domain
+      paths:
+        - path: /
+          pathType: Prefix
+  
+  tls: []
+    # - secretName: platform-tls
+    #   hosts:
+    #     - platform.example.com
+
+# ==============================================================================
+# Network Policies
+# ==============================================================================
+networkPolicy:
+  enabled: true
+  
+  # Allow ingress from ingress controller
+  ingressController:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: ingress-nginx
+  
+  # Allow monitoring scrapes
+  monitoring:
+    enabled: true
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: monitoring
+
+# ==============================================================================
+# Service Account
+# ==============================================================================
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# ==============================================================================
+# Pod Disruption Budget
+# ==============================================================================
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

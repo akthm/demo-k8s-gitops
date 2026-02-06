@@ -1,0 +1,70 @@
+# ==============================================================================
+# ArgoCD Application - Platform App (Local Development)
+# ==============================================================================
+# Unified umbrella chart deploying:
+#   - Flask Backend (BFF mode)
+#   - Nginx Frontend (React SPA)
+#   - OAuth2-Proxy (Keycloak OIDC)
+#   - Redis (Session storage)
+#
+# Local Configuration:
+#   - LocalStack for secrets (via External Secrets Operator)
+#   - In-cluster MySQL database
+#   - Self-signed TLS certificates
+#
+# Sync Wave: 2 (after Keycloak and External Secrets)
+# ==============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-app
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: platform-app
+    app.kubernetes.io/part-of: platform
+    environment: local
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: main
+    path: helm-charts/platform-app
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.local.yaml
+      releaseName: platform
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
+
+  ignoreDifferences:
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /status
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data

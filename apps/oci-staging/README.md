@@ -52,7 +52,8 @@ This directory contains ArgoCD Application manifests for the OCI staging environ
 | `platform-ingress.yaml` | NGINX Ingress + Let's Encrypt | 0 |
 | `keycloak.yaml` | Keycloak SSO (external ATP) | 1 |
 | `monitoring-stack.yaml` | Prometheus + Grafana | 1 |
-| `flask-backend.yaml` | Flask API (external ATP) | 2 |
+| `platform-app.yaml` | Unified Platform (Flask + Nginx + OAuth2-Proxy + Redis) | 2 |
+| `flask-backend.yaml` | Flask API standalone (deprecated - use platform-app) | 2 |
 
 ## Prerequisites
 

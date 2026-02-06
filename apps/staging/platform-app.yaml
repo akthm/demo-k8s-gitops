@@ -1,0 +1,75 @@
+# ==============================================================================
+# ArgoCD Application - Platform App (Staging - AWS EKS)
+# ==============================================================================
+# Unified umbrella chart deploying:
+#   - Flask Backend (BFF mode)
+#   - Nginx Frontend (React SPA)
+#   - OAuth2-Proxy (Keycloak OIDC)
+#   - Redis (Session storage)
+#
+# AWS Staging Configuration:
+#   - AWS Secrets Manager for secrets
+#   - In-cluster MySQL or RDS
+#   - Let's Encrypt TLS
+#
+# Sync Wave: 2 (after Keycloak and External Secrets)
+# ==============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-app
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: platform-app
+    app.kubernetes.io/part-of: platform
+    environment: staging
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: main
+    path: helm-charts/platform-app
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.staging.yaml
+      releaseName: platform
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /status
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /status

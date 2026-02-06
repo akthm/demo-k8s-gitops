@@ -1,0 +1,159 @@
+# ==============================================================================
+# Platform App - Local Development Values
+# ==============================================================================
+# This configuration is for local development with minikube/kind
+# - TLS disabled (HTTP only)
+# - Reduced resource requirements
+# - Debug logging enabled
+# - Local Keycloak configuration
+# ==============================================================================
+
+global:
+  domain: "platform.local"
+  namespace: "platform"
+  environment: "local"
+  
+  tls:
+    enabled: false
+  
+  keycloak:
+    enabled: true
+    url: "http://keycloak.keycloak.svc.cluster.local:8080"
+    realm: "platform"
+    bffClientId: "bff-proxy"
+    publicClientId: "react-frontend"
+    backendClientId: "flask-backend"
+    scopes: "openid profile email groups"
+  
+  bff:
+    enabled: true
+    internalSecret: "dev-internal-secret-change-me"
+    cookie:
+      name: "_bff_session"
+      secure: false  # HTTP for local dev
+      httpOnly: true
+      sameSite: "Lax"
+      expire: "24h"
+    redis:
+      enabled: true
+      external:
+        enabled: false
+  
+  externalSecrets:
+    enabled: false
+
+# OAuth2 Proxy
+oauth2Proxy:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# Backend
+backend:
+  enabled: true
+  replicaCount: 1
+  
+  image:
+    repository: akthm/demo-back
+    tag: "latest"
+    pullPolicy: Always
+  
+  config:
+    DEBUG: "1"
+    AUTH_MODE: "bff"
+    CORS_ORIGINS: "http://platform.local"
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  
+  # Disable database for local dev (use SQLite in-memory)
+  db:
+    enabled: false
+
+# Frontend
+frontend:
+  enabled: true
+  replicaCount: 1
+  
+  image:
+    repository: akthm/demo-front
+    tag: "latest"
+    pullPolicy: Always
+  
+  bff:
+    enabled: true
+  
+  keycloak:
+    enabled: false
+  
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# Redis
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        cpu: 25m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
+
+# Nginx Gateway
+nginxGateway:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# Ingress
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+    - host: "platform.local"
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Network policies disabled for local dev
+networkPolicy:
+  enabled: false
+
+# Service account
+serviceAccount:
+  create: true
+
+# PDB disabled for single replica
+podDisruptionBudget:
+  enabled: false

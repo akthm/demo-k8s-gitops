@@ -1,0 +1,88 @@
+# ==============================================================================
+# ArgoCD Application - Platform App (OCI Staging)
+# ==============================================================================
+# Unified umbrella chart deploying:
+#   - Flask Backend (BFF mode)
+#   - Nginx Frontend (React SPA)
+#   - OAuth2-Proxy (Keycloak OIDC)
+#   - Redis (Session storage)
+#
+# OCI Configuration:
+#   - OCI Autonomous Database (ATP) with wallet mTLS
+#   - OCI Vault for secrets management
+#   - Let's Encrypt TLS via Cloudflare DNS01
+#
+# Sync Wave: 2 (after Keycloak and External Secrets)
+# ==============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-app
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: platform-app
+    app.kubernetes.io/part-of: platform
+    environment: oci-staging
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: platform-alerts
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: platform-alerts
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: HEAD
+    path: helm-charts/platform-app
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.oci-staging.yaml
+      # Override release name for consistency
+      releaseName: platform
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Ignore differences that don't represent actual drift
+  ignoreDifferences:
+    # Ignore ExternalSecret status changes (refreshTime, conditions, etc.)
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /status
+    # Ignore Secret data changes (managed by ExternalSecrets Operator)
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+    # Ignore HPA status (managed by controller)
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /status
+    # Ignore PDB status
+    - group: policy
+      kind: PodDisruptionBudget
+      jsonPointers:
+        - /status

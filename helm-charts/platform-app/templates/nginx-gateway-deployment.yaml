@@ -1,0 +1,110 @@
+{{- if .Values.nginxGateway.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "platform-app.fullname" . }}-nginx-gateway
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nginx-gateway
+spec:
+  replicas: {{ .Values.nginxGateway.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "platform-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: nginx-gateway
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/nginx-gateway-configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/bff-internal-secret.yaml") . | sha256sum }}
+      labels:
+        {{- include "platform-app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: nginx-gateway
+    spec:
+      serviceAccountName: {{ include "platform-app.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+      containers:
+        - name: nginx
+          image: "{{ .Values.nginxGateway.image.repository }}:{{ .Values.nginxGateway.image.tag }}"
+          imagePullPolicy: {{ .Values.nginxGateway.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # BFF internal secret for backend trust verification
+            - name: BFF_INTERNAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "platform-app.bff.internalSecretName" . }}
+                  key: internal-secret
+            # Backend service URL
+            - name: BACKEND_URL
+              value: {{ include "platform-app.backend.url" . | quote }}
+            # Frontend service URL  
+            - name: FRONTEND_URL
+              value: {{ include "platform-app.frontend.url" . | quote }}
+            # OAuth2 Proxy URL
+            - name: OAUTH2_PROXY_URL
+              value: "http://{{ include "platform-app.oauth2proxy.name" . }}:{{ .Values.oauth2Proxy.service.port }}"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/templates
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.nginxGateway.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "platform-app.fullname" . }}-nginx-gateway-config
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+      {{- with .Values.nginxGateway.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nginxGateway.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nginxGateway.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

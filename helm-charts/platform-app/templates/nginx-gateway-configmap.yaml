@@ -1,0 +1,270 @@
+{{- if .Values.nginxGateway.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "platform-app.fullname" . }}-nginx-gateway-config
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nginx-gateway
+data:
+  default.conf.template: |
+    # ==============================================================================
+    # Nginx BFF (Backend for Frontend) Gateway Configuration
+    # ==============================================================================
+    # This nginx acts as the single entry point for the application:
+    # - Handles authentication via oauth2-proxy (auth_request)
+    # - Routes API calls to backend with identity headers
+    # - Serves frontend static files
+    # - Manages CSRF protection via double-submit cookie pattern
+    # ==============================================================================
+
+    # DNS resolver for dynamic upstream resolution (Kubernetes CoreDNS)
+    resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+
+    # ==============================================================================
+    # Upstream Definitions (using environment variables)
+    # ==============================================================================
+    upstream backend_api {
+        server {{ printf "${BACKEND_URL}" | trimPrefix "http://" }};
+    }
+
+    upstream frontend_app {
+        server {{ printf "${FRONTEND_URL}" | trimPrefix "http://" }};
+    }
+
+    upstream oauth2_proxy {
+        server {{ printf "${OAUTH2_PROXY_URL}" | trimPrefix "http://" }};
+    }
+
+    # ==============================================================================
+    # Rate Limiting Zones
+    # ==============================================================================
+    limit_req_zone $binary_remote_addr zone=api_limit:10m rate={{ .Values.nginxGateway.rateLimiting.api.rate }};
+    limit_req_zone $binary_remote_addr zone=auth_limit:10m rate={{ .Values.nginxGateway.rateLimiting.auth.rate }};
+
+    # ==============================================================================
+    # Main Server Block
+    # ==============================================================================
+    server {
+        listen 8080;
+        server_name {{ .Values.global.domain }};
+
+        # ==========================================================================
+        # Security Headers (applied to all responses)
+        # ==========================================================================
+        add_header X-Frame-Options "{{ .Values.nginxGateway.securityHeaders.xFrameOptions }}" always;
+        add_header X-Content-Type-Options "{{ .Values.nginxGateway.securityHeaders.xContentTypeOptions }}" always;
+        add_header X-XSS-Protection "{{ .Values.nginxGateway.securityHeaders.xXssProtection }}" always;
+        add_header Referrer-Policy "{{ .Values.nginxGateway.securityHeaders.referrerPolicy }}" always;
+        
+        {{- if .Values.global.tls.enabled }}
+        # HSTS for production with HTTPS
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        {{- end }}
+
+        # Client body size limit
+        client_max_body_size {{ .Values.nginxGateway.clientMaxBodySize }};
+
+        # ==========================================================================
+        # OAuth2 Proxy - Internal Auth Request Endpoint
+        # ==========================================================================
+        # nginx calls this to validate authentication before proxying to backend
+        location = /oauth2/auth {
+            internal;
+            proxy_pass http://oauth2_proxy/oauth2/auth;
+            proxy_pass_request_body off;
+            proxy_set_header Content-Length "";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Uri $request_uri;
+            
+            # Increase buffer size for large JWT tokens in headers
+            proxy_buffer_size 16k;
+            proxy_buffers 8 16k;
+            proxy_busy_buffers_size 32k;
+        }
+
+        # ==========================================================================
+        # OAuth2 Proxy - Public Endpoints (login, callback, logout, etc.)
+        # ==========================================================================
+        location /oauth2/ {
+            limit_req zone=auth_limit burst={{ .Values.nginxGateway.rateLimiting.auth.burst }} nodelay;
+            
+            proxy_pass http://oauth2_proxy;
+            proxy_http_version 1.1;
+            
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header X-Forwarded-Port $server_port;
+            
+            # Important: pass cookies for session handling
+            proxy_set_header Cookie $http_cookie;
+            proxy_pass_header Set-Cookie;
+        }
+
+        # ==========================================================================
+        # BFF Auth Endpoints - Friendly aliases for oauth2-proxy
+        # ==========================================================================
+        
+        # Login - redirect to oauth2-proxy start
+        location = /auth/login {
+            return 302 /oauth2/start?rd=$arg_returnTo;
+        }
+        
+        # Logout - call oauth2-proxy sign_out
+        location = /auth/logout {
+            return 302 /oauth2/sign_out;
+        }
+        
+        # User info - get current user from session
+        location = /auth/userinfo {
+            auth_request /oauth2/auth;
+            auth_request_set $auth_user $upstream_http_x_auth_request_user;
+            auth_request_set $auth_email $upstream_http_x_auth_request_email;
+            auth_request_set $auth_username $upstream_http_x_auth_request_preferred_username;
+            auth_request_set $auth_groups $upstream_http_x_auth_request_groups;
+            
+            default_type application/json;
+            return 200 '{"sub":"$auth_user","email":"$auth_email","username":"$auth_username","groups":"$auth_groups"}';
+        }
+        
+        # CSRF token endpoint - returns token for double-submit pattern
+        location = /auth/csrf {
+            auth_request /oauth2/auth;
+            
+            # Generate CSRF token from nginx request ID
+            set $csrf_value $request_id;
+            
+            # Set the CSRF cookie (non-HttpOnly so JS can read it)
+            add_header Set-Cookie "XSRF-TOKEN=$csrf_value; Path=/; SameSite=Lax";
+            add_header Content-Type "application/json";
+            
+            return 200 '{"csrfToken":"$csrf_value"}';
+        }
+
+        # ==========================================================================
+        # Backend API Routes (Protected by BFF)
+        # ==========================================================================
+        location /api/ {
+            limit_req zone=api_limit burst={{ .Values.nginxGateway.rateLimiting.api.burst }} nodelay;
+            
+            # Require authentication via oauth2-proxy
+            auth_request /oauth2/auth;
+            
+            # Capture identity headers from oauth2-proxy response
+            auth_request_set $auth_user $upstream_http_x_auth_request_user;
+            auth_request_set $auth_email $upstream_http_x_auth_request_email;
+            auth_request_set $auth_username $upstream_http_x_auth_request_preferred_username;
+            auth_request_set $auth_groups $upstream_http_x_auth_request_groups;
+            auth_request_set $auth_token $upstream_http_x_auth_request_access_token;
+            
+            # Error handling for auth failures - redirect to login
+            error_page 401 = /oauth2/start;
+            
+            # Disable caching for API endpoints
+            add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+            add_header Pragma "no-cache" always;
+            add_header Expires "0" always;
+            
+            # Proxy to backend API
+            proxy_pass http://backend_api;
+            proxy_http_version 1.1;
+            
+            # Disable proxy caching
+            proxy_cache_bypass 1;
+            proxy_no_cache 1;
+            
+            # Standard proxy headers
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header X-Forwarded-Port $server_port;
+            
+            # BFF Identity Headers (from oauth2-proxy)
+            # These are what the backend's bff_auth.py reads
+            proxy_set_header X-Auth-Request-User $auth_user;
+            proxy_set_header X-Auth-Request-Email $auth_email;
+            proxy_set_header X-Auth-Request-Preferred-Username $auth_username;
+            proxy_set_header X-Auth-Request-Groups $auth_groups;
+            
+            # Forward access token for defense-in-depth validation
+            proxy_set_header X-Forwarded-Access-Token $auth_token;
+            
+            # Internal secret for backend trust verification
+            # Backend validates this to ensure requests come from nginx
+            proxy_set_header X-Internal-Auth "${BFF_INTERNAL_SECRET}";
+            
+            # Remove browser's Authorization header (we use cookies in BFF mode)
+            proxy_set_header Authorization "";
+            
+            # Timeout settings
+            proxy_connect_timeout {{ .Values.nginxGateway.timeouts.connect }};
+            proxy_send_timeout {{ .Values.nginxGateway.timeouts.send }};
+            proxy_read_timeout {{ .Values.nginxGateway.timeouts.read }};
+            
+            # Buffering
+            proxy_buffering on;
+            proxy_buffer_size 4k;
+            proxy_buffers 8 4k;
+            
+            # Error handling
+            proxy_intercept_errors on;
+            error_page 502 503 504 /50x.html;
+        }
+
+        # ==========================================================================
+        # Frontend Application
+        # ==========================================================================
+        location / {
+            # Require authentication for all pages (true BFF pattern)
+            auth_request /oauth2/auth;
+            error_page 401 = /oauth2/start;
+            
+            proxy_pass http://frontend_app/;
+            proxy_http_version 1.1;
+            
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # WebSocket support for HMR (development mode)
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            
+            proxy_read_timeout 86400;
+        }
+
+        # ==========================================================================
+        # Health Check Endpoint (No auth required)
+        # ==========================================================================
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+
+        # ==========================================================================
+        # Ready Check (validates upstream connectivity)
+        # ==========================================================================
+        location /ready {
+            access_log off;
+            return 200 "ready\n";
+            add_header Content-Type text/plain;
+        }
+
+        # ==========================================================================
+        # Error Pages
+        # ==========================================================================
+        location = /50x.html {
+            root /usr/share/nginx/html;
+        }
+    }
+{{- end }}

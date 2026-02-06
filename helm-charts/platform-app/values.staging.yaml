@@ -1,0 +1,242 @@
+# ==============================================================================
+# Platform App - Staging Environment Values
+# ==============================================================================
+# This configuration is for staging/test environment
+# - TLS enabled via cert-manager
+# - External secrets from AWS Secrets Manager
+# - Moderate resources
+# - External Keycloak
+# ==============================================================================
+
+global:
+  domain: "platform.staging.example.com"
+  namespace: "platform"
+  environment: "staging"
+  
+  tls:
+    enabled: true
+    secretName: "platform-staging-tls"
+  
+  keycloak:
+    enabled: true
+    url: "https://keycloak.staging.example.com"
+    realm: "platform"
+    bffClientId: "bff-proxy"
+    bffClientSecretRef:
+      name: ""  # Uses ExternalSecret
+      key: "client-secret"
+    publicClientId: "react-frontend"
+    backendClientId: "flask-backend"
+    backendClientSecretRef:
+      name: ""
+      key: "client-secret"
+    scopes: "openid profile email groups"
+  
+  bff:
+    enabled: true
+    internalSecretRef:
+      name: ""  # Uses ExternalSecret
+      key: "internal-secret"
+    cookie:
+      name: "__Host-bff-session"
+      secure: true
+      httpOnly: true
+      sameSite: "Lax"
+      expire: "168h"
+    redis:
+      enabled: true
+      external:
+        enabled: false
+  
+  externalSecrets:
+    enabled: true
+    secretStoreRef:
+      name: "aws-secrets-manager"
+      kind: "ClusterSecretStore"
+    refreshInterval: "5m"
+    basePath: "staging/platform"
+
+# OAuth2 Proxy
+oauth2Proxy:
+  enabled: true
+  replicaCount: 2
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# Backend
+backend:
+  enabled: true
+  replicaCount: 2
+  
+  image:
+    repository: akthm/demo-back
+    tag: "1.0.14"
+    pullPolicy: IfNotPresent
+  
+  config:
+    DEBUG: "0"
+    AUTH_MODE: "bff"
+    CORS_ORIGINS: "https://platform.staging.example.com"
+  
+  oidc:
+    enabled: true
+    issuer: "https://keycloak.staging.example.com/realms/platform"
+  
+  bff:
+    enabled: true
+    validateJwt: true
+    jitProvision: true
+    rolesSource: "jwt"
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Use MySQL database
+  db:
+    enabled: true
+    auth:
+      existingSecret: "flask-app-db"
+      database: flask_db
+      username: flask_user
+  
+  externalSecrets:
+    enabled: true
+    databaseKey: "staging/backend/database"
+    flaskAppKey: "staging/backend/flask-app"
+    adminKey: "staging/backend/admin"
+    jwtKeysKey: "staging/backend/jwt-keys"
+    oidcKey: "staging/backend/oidc"
+
+# Frontend
+frontend:
+  enabled: true
+  replicaCount: 2
+  
+  image:
+    repository: akthm/demo-front
+    tag: "1.0.3"
+    pullPolicy: IfNotPresent
+  
+  bff:
+    enabled: true
+  
+  keycloak:
+    enabled: false
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# Redis
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: true
+    existingSecret: "platform-redis-credentials"
+    existingSecretPasswordKey: "redis-password"
+  master:
+    persistence:
+      enabled: true
+      size: 2Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+# Nginx Gateway
+nginxGateway:
+  enabled: true
+  replicaCount: 2
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# Ingress
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: "platform.staging.example.com"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: platform-staging-tls
+      hosts:
+        - platform.staging.example.com
+
+# Network policies enabled
+networkPolicy:
+  enabled: true
+  ingressController:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: ingress-nginx
+  monitoring:
+    enabled: true
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: monitoring
+
+# Service account with IRSA
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/platform-staging-role"
+
+# PDB enabled
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
