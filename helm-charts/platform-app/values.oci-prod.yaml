@@ -406,6 +406,9 @@ frontend:
   keycloak:
     enabled: false
   
+  backend:
+    enabled: false
+  
   bff:
     enabled: true
     runtimeConfig:

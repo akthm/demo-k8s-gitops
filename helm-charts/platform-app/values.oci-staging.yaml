@@ -42,10 +42,11 @@ global:
   # External Secrets Configuration - OCI Vault
   externalSecrets:
     enabled: true
-    secretStore:
+    secretStoreRef:
       name: "oci-vault"
       kind: "ClusterSecretStore"
     refreshInterval: "10m"
+    basePath: "oci-staging"
     retrySettings:
       maxRetries: 8
       retryInterval: "15s"
@@ -136,7 +137,7 @@ nginxGateway:
   replicaCount: 2
   
   image:
-    repository: nginx
+    repository: docker.io/library/nginx
     tag: "1.27-alpine"
   
   service:
@@ -245,6 +246,11 @@ backend:
       retryInterval: "15s"
       retryIntervalMax: "10m"
     appSecretKey: "flask-app"
+    databaseKey: "flask-app"
+    flaskAppKey: "flask-app"
+    adminKey: "flask-app"
+    jwtKeysKey: "flask-app"
+    oidcKey: "flask-app"
   
   # ------------------------------------------------------------------------------
   # BFF Mode Configuration
@@ -410,6 +416,10 @@ frontend:
   
   # Keycloak direct auth disabled - using BFF pattern
   keycloak:
+    enabled: false
+  
+  # Disable direct backend proxy - API calls go through ingress -> nginx-gateway
+  backend:
     enabled: false
   
   # BFF mode enabled

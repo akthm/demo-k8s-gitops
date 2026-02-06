@@ -140,6 +140,9 @@ frontend:
     tag: "1.0.3"
     pullPolicy: IfNotPresent
   
+  backend:
+    enabled: false
+  
   bff:
     enabled: true
   

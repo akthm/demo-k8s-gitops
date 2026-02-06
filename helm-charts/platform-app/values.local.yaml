@@ -91,6 +91,9 @@ frontend:
     tag: "latest"
     pullPolicy: Always
   
+  backend:
+    enabled: false
+  
   bff:
     enabled: true
   
