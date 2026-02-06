@@ -177,7 +177,10 @@ nginxGateway:
 redis:
   enabled: true
   architecture: standalone
-  
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis
+    tag: "8.2.1-debian-12-r0"
   auth:
     enabled: true
     existingSecret: ""
