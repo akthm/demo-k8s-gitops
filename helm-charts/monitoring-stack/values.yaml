@@ -145,3 +145,6 @@ externalSecrets:
     name: cluster-secret-store
     kind: ClusterSecretStore
   appSecretKey: "monitoring"
+
+  initialAdminSecretEnabled: false  
+
