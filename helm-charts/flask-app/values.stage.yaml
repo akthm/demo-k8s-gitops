@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
-  tag: "1.1.3" # should be replaced
-  repository: akthm/demo-back
+  tag: "1.1.4" # should be replaced
+  repository: akthm/back
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
@@ -16,9 +16,9 @@ externalSecrets:
   refreshInterval: "2m"
   # Aggressive retry settings for staging
   retrySettings:
-    maxRetries: 10          # More retries in staging for debugging
-    retryInterval: "5s"     # Quick initial retry
-    retryIntervalMax: "2m"  # Don't wait too long between retries
+    maxRetries: 10 # More retries in staging for debugging
+    retryInterval: "5s" # Quick initial retry
+    retryIntervalMax: "2m" # Don't wait too long between retries
   # Staging AWS Secrets Manager keys
   databaseKey: "staging/backend/database"
   flaskAppKey: "staging/backend/flask-app"
@@ -66,7 +66,6 @@ autoscaling:
   maxReplicas: 1
 hpa:
   enabled: false
-
 # Enable monitoring in staging
 monitoring:
   enabled: true
@@ -75,8 +74,8 @@ monitoring:
     interval: 30s
     scrapeTimeout: 10s
     labels:
-      release: prometheus  # Match Prometheus Operator selector
+      release: prometheus # Match Prometheus Operator selector
   prometheusRule:
     enabled: true
     labels:
-      release: prometheus  # Match Prometheus Operator selector
+      release: prometheus # Match Prometheus Operator selector
