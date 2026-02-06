@@ -38,6 +38,8 @@ global:
     cookieDomain: ".adaas-il.com"
     cookieSecure: true
     sessionTTL: "8h"
+    cookie:
+      sameSite: "lax"  # MUST be lowercase: lax, strict, or none
     # External secret configuration
     externalSecret:
       secretKey: "platform-bff"
@@ -89,7 +91,7 @@ oauth2Proxy:
     cookieName: "_oauth2_proxy"
     cookieSecure: true
     cookieDomain: ".adaas-il.com"
-    cookieSameSite: "lax"
+    cookieSameSite: "lax"  # MUST be lowercase: lax, strict, or none
     cookieExpire: "8h"
     cookieRefresh: "30m"
     
@@ -179,8 +181,8 @@ redis:
   architecture: standalone
   image:
     registry: docker.io
-    repository: bitnamilegacy/redis
-    tag: "8.2.1-debian-12-r0"
+    repository: bitnami/redis
+    tag: "7.4.1-debian-12-r1"  # Changed from invalid r2 to valid r1
   auth:
     enabled: true
     existingSecret: ""
