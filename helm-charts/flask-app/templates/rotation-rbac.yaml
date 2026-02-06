@@ -91,7 +91,22 @@ rules:
   resourceNames:
   - {{ include "flask-app.fullname" . }}-jwt-keys
   - {{ include "flask-app.fullname" . }}-db-credentials
+  - {{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }}
   verbs: ["get", "list"]
+
+# Trigger ExternalSecret re-sync for rotation detection
+- apiGroups: ["external-secrets.io"]
+  resources: ["externalsecrets"]
+  resourceNames:
+  - {{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }}
+  verbs: ["get", "patch"]
+
+# Read ExternalSecret status
+- apiGroups: ["external-secrets.io"]
+  resources: ["externalsecrets/status"]
+  resourceNames:
+  - {{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }}
+  verbs: ["get"]
 
 # Read deployments for status checks
 - apiGroups: ["apps"]

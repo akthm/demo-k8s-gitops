@@ -275,13 +275,13 @@ spec:
       - name: wallet-dir
         emptyDir: {}
       {{- end }}
-      # Project db encryption keys from secret to files
+      # Encryption keys volume (mounted separately for rotation monitoring)
       - name: db-encryption-keys
         projected:
           defaultMode: 0400
           sources:
           - secret:
-              name: {{ .Values.secretNames.databaseCredentials }}
+              name: {{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }}
               items:
               {{- range .Values.rotation.database.keyVersions }}
               - key: db_encryption_{{ . }}.key
@@ -289,6 +289,12 @@ spec:
               {{- end }}
               - key: db_encryption_current.version
                 path: current.version
+              {{- if .Values.rotation.database.enabled }}
+              - key: rotation_date
+                path: rotation_date
+              - key: migration_status
+                path: migration_status
+              {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

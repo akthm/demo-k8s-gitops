@@ -9,6 +9,7 @@ fullnameOverride: ""
 secretNames:
   database: "flask-app-db"  # MySQL root/user password secret
   databaseCredentials: "flask-app-db-credentials"  # External Secrets - DB connection details
+  encryptionKeys: "flask-app-encryption-keys"  # External Secrets - Versioned encryption keys
   flaskSecret: "flask-app-secret"  # External Secrets - Flask SECRET_KEY, etc
   adminCredentials: "flask-app-admin-credentials"  # External Secrets - Initial admin user
 

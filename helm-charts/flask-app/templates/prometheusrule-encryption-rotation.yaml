@@ -1,0 +1,201 @@
+{{- if and .Values.monitoring.enabled .Values.rotation.database.enabled }}
+# ==============================================================================
+# PrometheusRule for Database Encryption Key Rotation Detection
+# ==============================================================================
+# Monitors encryption key version changes and rotation events from ExternalSecret
+# metadata and status. Triggers alerts when:
+#   - CURRENT_KEY_VERSION changes (rotation detected)
+#   - New encryption key version appears in secret
+#   - Rotation grace period expires
+#   - Migration status indicates stale data
+# ==============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "flask-app.fullname" . }}-encryption-rotation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+    prometheus: kube-prometheus
+spec:
+  groups:
+  - name: encryption-key-rotation
+    interval: 1m
+    rules:
+    
+    # ==============================================================================
+    # Recording Rules - Track Encryption Key Versions
+    # ==============================================================================
+    
+    - record: mokhaback:encryption_key:current_version
+      expr: |
+        label_replace(
+          kube_secret_info{namespace="{{ .Release.Namespace }}", secret="{{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }}"},
+          "version",
+          "$1",
+          "annotation_encryption_mokhaback_dev_last_sync",
+          ".*"
+        )
+      labels:
+        app: {{ include "flask-app.name" . }}
+    
+    - record: mokhaback:encryption_key:version_count
+      expr: |
+        count(
+          kube_secret_info{
+            namespace="{{ .Release.Namespace }}",
+            secret="{{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }}"
+          }
+        ) or vector(0)
+      labels:
+        app: {{ include "flask-app.name" . }}
+    
+    - record: mokhaback:encryption_key:rotation_age_seconds
+      expr: |
+        time() - (
+          kube_secret_info{
+            namespace="{{ .Release.Namespace }}",
+            secret="{{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }}"
+          } * on() group_right timestamp(kube_secret_info)
+        )
+      labels:
+        app: {{ include "flask-app.name" . }}
+    
+    # ==============================================================================
+    # Alerting Rules - Rotation Detection and Monitoring
+    # ==============================================================================
+    
+    - alert: EncryptionKeyRotationDetected
+      expr: |
+        changes(
+          kube_secret_info{
+            namespace="{{ .Release.Namespace }}",
+            secret="{{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }}"
+          }[5m]
+        ) > 0
+      for: 1m
+      labels:
+        severity: info
+        component: encryption
+        rotation: detected
+      annotations:
+        summary: "Database encryption key rotation detected"
+        description: |
+          The encryption key secret {{ "{{" }} $labels.secret {{ "}}" }} in namespace {{ "{{" }} $labels.namespace {{ "}}" }} has been updated.
+          This indicates a new encryption key version may have been added.
+          
+          Action Required:
+          1. Verify CURRENT_KEY_VERSION was incremented
+          2. Monitor migration_status in secret
+          3. Check for data re-encryption progress
+          4. Review application logs for encryption/decryption errors
+          
+          Grace Period: {{ .Values.rotation.database.gracePeriodDays }} days
+    
+    - alert: EncryptionKeyVersionMismatch
+      expr: |
+        mokhaback:encryption_key:version_count < {{ len .Values.rotation.database.keyVersions }}
+      for: 5m
+      labels:
+        severity: warning
+        component: encryption
+      annotations:
+        summary: "Encryption key version count mismatch"
+        description: |
+          Expected {{ "{{" }} {{ len .Values.rotation.database.keyVersions }} {{ "}}" }} encryption key versions but found {{ "{{" }} $value {{ "}}" }}.
+          
+          This may indicate:
+          - ExternalSecret sync failure
+          - Missing key versions in OCI Vault
+          - Configuration mismatch between values.yaml and vault secret
+          
+          Check:
+          - ExternalSecret status: kubectl describe externalsecret {{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }} -n {{ .Release.Namespace }}
+          - OCI Vault secret content
+          - values.yaml rotation.database.keyVersions configuration
+    
+    - alert: EncryptionKeyRotationGracePeriodExpiring
+      expr: |
+        mokhaback:encryption_key:rotation_age_seconds > ({{ .Values.rotation.database.gracePeriodDays }} * 86400 * 0.8)
+        and
+        mokhaback:encryption_key:rotation_age_seconds < ({{ .Values.rotation.database.gracePeriodDays }} * 86400)
+      for: 1h
+      labels:
+        severity: warning
+        component: encryption
+        rotation: grace-period
+      annotations:
+        summary: "Encryption key rotation grace period expiring soon"
+        description: |
+          The encryption key rotation grace period is 80% expired ({{ "{{" }} $value | humanizeDuration {{ "}}" }} remaining).
+          
+          Grace Period: {{ .Values.rotation.database.gracePeriodDays }} days
+          Current Age: {{ "{{" }} $value | humanizeDuration {{ "}}" }}
+          
+          Action Required:
+          1. Verify all encrypted data has been migrated to new key version
+          2. Check migration_status in secret (should be "completed")
+          3. Review application metrics for encryption version distribution
+          4. Plan for old key version removal after grace period
+    
+    - alert: EncryptionKeyRotationGracePeriodExpired
+      expr: |
+        mokhaback:encryption_key:rotation_age_seconds > ({{ .Values.rotation.database.gracePeriodDays }} * 86400)
+      for: 30m
+      labels:
+        severity: critical
+        component: encryption
+        rotation: expired
+      annotations:
+        summary: "Encryption key rotation grace period EXPIRED"
+        description: |
+          The encryption key rotation grace period has expired!
+          
+          Grace Period: {{ .Values.rotation.database.gracePeriodDays }} days
+          Current Age: {{ "{{" }} $value | humanizeDuration {{ "}}" }}
+          
+          URGENT Action Required:
+          1. Verify 100% of encrypted data uses new key version
+          2. Remove old key version from OCI Vault (after backup)
+          3. Update values.yaml rotation.database.keyVersions
+          4. Trigger Helm upgrade to update deployment
+          
+          WARNING: Old keys should only be removed after confirming no data uses them.
+    
+    - alert: ExternalSecretEncryptionKeysSyncFailure
+      expr: |
+        externalsecret_sync_calls_error{
+          name="{{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }}",
+          namespace="{{ .Release.Namespace }}"
+        } > 0
+      for: 5m
+      labels:
+        severity: critical
+        component: encryption
+        external_secrets: sync-error
+      annotations:
+        summary: "Encryption keys ExternalSecret sync failing"
+        description: |
+          The ExternalSecret for encryption keys is failing to sync from OCI Vault.
+          
+          Secret: {{ "{{" }} $labels.name {{ "}}" }}
+          Namespace: {{ "{{" }} $labels.namespace {{ "}}" }}
+          Error Count: {{ "{{" }} $value {{ "}}" }}
+          
+          This is CRITICAL - the application cannot start without encryption keys!
+          
+          Troubleshooting:
+          1. Check ExternalSecret status: kubectl describe externalsecret {{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }} -n {{ .Release.Namespace }}
+          2. Verify OCI Vault secret exists and contains required keys
+          3. Check ClusterSecretStore configuration
+          4. Review ESO operator logs
+          
+          Required keys in vault secret '{{ .Values.externalSecrets.appSecretKey | default "flask-app" }}':
+          {{- range .Values.rotation.database.keyVersions }}
+          - DATABASE_ENCRYPTION_KEY_{{ . | upper }}
+          {{- end }}
+          - CURRENT_KEY_VERSION
+          - ROTATION_DATE
+          - MIGRATION_STATUS
+{{- end }}
