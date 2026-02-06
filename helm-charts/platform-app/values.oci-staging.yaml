@@ -38,6 +38,9 @@ global:
     cookieDomain: ".adaas-il.com"
     cookieSecure: true
     sessionTTL: "8h"
+    # External secret configuration
+    externalSecret:
+      secretKey: "platform-bff"
   
   # External Secrets Configuration - OCI Vault
   externalSecrets:
@@ -46,7 +49,6 @@ global:
       name: "oci-vault"
       kind: "ClusterSecretStore"
     refreshInterval: "10m"
-    basePath: "oci-staging"
     retrySettings:
       maxRetries: 8
       retryInterval: "15s"
@@ -63,6 +65,10 @@ oauth2Proxy:
   image:
     repository: quay.io/oauth2-proxy/oauth2-proxy
     tag: "v7.6.0"
+  
+  # External secret configuration
+  externalSecret:
+    secretKey: "platform-bff"
   
   # OCI Keycloak OIDC configuration
   config:
