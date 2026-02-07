@@ -8,10 +8,10 @@ fullnameOverride: ""
 # Secret names - centralized for easy override
 secretNames:
   database: "flask-app-db"  # MySQL root/user password secret
-  databaseCredentials: "flask-app-db-credentials"  # External Secrets - DB connection details
-  encryptionKeys: "flask-app-encryption-keys"  # External Secrets - Versioned encryption keys
-  flaskSecret: "flask-app-secret"  # External Secrets - Flask SECRET_KEY, etc
-  adminCredentials: "flask-app-admin-credentials"  # External Secrets - Initial admin user
+  databaseCredentials: ""  # External Secrets - DB connection details
+  encryptionKeys: ""  # External Secrets - Versioned encryption keys
+  flaskSecret: ""  # External Secrets - Flask SECRET_KEY, etc
+  adminCredentials: ""  # External Secrets - Initial admin user
 
 image:
   repository: akthm/demo-back  # Change this

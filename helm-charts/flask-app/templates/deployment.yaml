@@ -33,7 +33,7 @@ spec:
         reloader.stakater.com/auto: "true"
         {{- else }}
         reloader.stakater.com/search: "true"
-        secret.reloader.stakater.com/reload: "{{ include "flask-app.fullname" . }}-jwt-keys,{{ .Values.secretNames.databaseCredentials }},{{ .Values.secretNames.flaskSecret }}"
+        secret.reloader.stakater.com/reload: "{{ include "flask-app.fullname" . }}-jwt-keys,{{ .Values.secretNames.databaseCredentials }}"
         {{- end }}
       {{- end }}
       labels:
@@ -141,12 +141,18 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "flask-app.fullname" . }}-config
+          {{- if .Values.secretNames.databaseCredentials  }}
             - secretRef:
                 name: {{ .Values.secretNames.databaseCredentials }}
+          {{- end }}
+          {{- if .Values.secretNames.flaskSecret }}
             - secretRef:
                 name: {{ .Values.secretNames.flaskSecret }}
+          {{- end }}
+          {{- if .Values.secretNames.adminCredentials }}
             - secretRef:
                 name: {{ .Values.secretNames.adminCredentials }}
+          {{- end }}  
           env:
               {{- if .Values.jwt.enabled }}
             - name: JWT_ALGORITHM

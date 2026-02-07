@@ -215,7 +215,7 @@ redis:
 backend:
   enabled: true
   
-  replicaCount: 2
+  replicaCount: 1
   
   image:
     repository: "docker.io/akthm/demo-back"
