@@ -1,35 +1,29 @@
 # Default replica count (can be overridden by HPA)
 replicaCount: 1
-
 # Optional name overrides used by templates/helpers
 nameOverride: ""
 fullnameOverride: ""
-
 # Secret names - centralized for easy override
 secretNames:
-  database: "flask-app-db"  # MySQL root/user password secret
-  databaseCredentials: ""  # External Secrets - DB connection details
-  encryptionKeys: ""  # External Secrets - Versioned encryption keys
-  flaskSecret: ""  # External Secrets - Flask SECRET_KEY, etc
-  adminCredentials: ""  # External Secrets - Initial admin user
-
+  database: "flask-app-db" # MySQL root/user password secret
+  databaseCredentials: "" # External Secrets - DB connection details
+  encryptionKeys: "" # External Secrets - Versioned encryption keys
+  flaskSecret: "" # External Secrets - Flask SECRET_KEY, etc
+  adminCredentials: "" # External Secrets - Initial admin user
 image:
-  repository: akthm/demo-back  # Change this
+  repository: akthm/demo-back # Change this
   pullPolicy: IfNotPresent
-  tag: "1.1.4" # ArgoCD will override this with your git commit SHA
-
+  tag: "1.1.5" # ArgoCD will override this with your git commit SHA
 service:
   type: ClusterIP
   port: 5000 # The port the Service exposes
   targetPort: 5000 # The port your Flask app's container (Gunicorn) listens on
-
 # Liveness and Readiness probes are ESSENTIAL for Blue/Green
 probes:
   path: "/health" # Your app must respond 200 OK at this path
   initialDelaySeconds: 15
   periodSeconds: 10
   timeoutSeconds: 5
-
 # Per-container liveness/readiness objects expected by templates. These are
 # populated from the simpler `probes` fields above for convenience. You can
 # replace these with any valid kubernetes probe objects.
@@ -40,7 +34,6 @@ livenessProbe:
   initialDelaySeconds: 15
   periodSeconds: 10
   timeoutSeconds: 5
-
 readinessProbe:
   httpGet:
     path: "/health"
@@ -48,50 +41,41 @@ readinessProbe:
   initialDelaySeconds: 5
   periodSeconds: 10
   timeoutSeconds: 5
-
 # Horizontal Pod Autoscaler (HPA) settings
 hpa:
   enabled: false
   minReplicas: 1
   maxReplicas: 2
   targetCPUUtilizationPercentage: 70
-
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 2
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
-
 # Optional runtime values referenced by templates. These are safe defaults
 # (mostly empty) that you can customize per-deployment.
 serviceAccount:
   create: true
   name: flask-app
-
 podAnnotations:
   prometheus.io/scrape: "false"
-
 podLabels:
   app: flask-app
   version: "1"
-
 imagePullSecrets: []
-
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   runAsGroup: 1000
   fsGroup: 1000
   fsGroupChangePolicy: "OnRootMismatch"
-
 securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
       - ALL
   readOnlyRootFilesystem: false
-
 resources:
   requests:
     cpu: 100m
@@ -101,11 +85,9 @@ resources:
     memory: 512Mi
 volumeMounts: []
 volumes: []
-
 nodeSelector: {}
 affinity: {}
 tolerations: []
-
 # HTTPRoute (Gateway API) and legacy ingress fallbacks used by templates/NOTES
 httpRoute:
   enabled: false
@@ -113,36 +95,28 @@ httpRoute:
   parentRefs: []
   hostnames: []
   rules: []
-
 ingress:
   enabled: false
   hosts: []
   tls: []
-
-
 db:
   auth:
-    existingSecret: "flask-app-db"  # Use the secret created by External Secrets (matches secretNames.database)
+    existingSecret: "flask-app-db" # Use the secret created by External Secrets (matches secretNames.database)
     database: flask_db
     username: flask_user
-  
   # Disable internal secret creation - use ExternalSecret instead
   enabled: true
-  
   primary:
     persistence:
       enabled: true
       size: 1Gi
-      storageClass: ""  # Use cluster default (ebs-csi-gp3)
+      storageClass: "" # Use cluster default (ebs-csi-gp3)
   image:
     registry: docker.io
     repository: bitnamilegacy/mysql
-    tag: "9.4.0-debian-12-r1" 
-
-  architecture: standalone   # Use standalone for dev/test, replication for prod
-
+    tag: "9.4.0-debian-12-r1"
+  architecture: standalone # Use standalone for dev/test, replication for prod
   fullnameOverride: "flask-app-db"
-  
   # Increase probe timeouts to prevent premature restarts
   primary:
     startupProbe:
@@ -166,14 +140,12 @@ db:
       timeoutSeconds: 5
       failureThreshold: 3
       successThreshold: 1
-  
   # Optional: Configure MySQL settings
   configuration: |-
     [mysqld]
     default_authentication_plugin=mysql_native_password
     character-set-server=utf8mb4
     collation-server=utf8mb4_unicode_ci
-
 # ==============================================================================
 # Oracle ATP Database Wallet Configuration
 # ==============================================================================
@@ -192,7 +164,6 @@ database:
     bucketInfoSecretName: ""
     # Mount path for wallet files inside the container
     mountPath: "/opt/oracle/wallet"
-  
 # --- NEW SECTION: Non-sensitive configuration ---
 # These values will be loaded into a ConfigMap
 config:
@@ -219,12 +190,11 @@ config:
   # Encryption settings
   DB_ENCRYPTION_ENABLED: "true"
   DB_ENCRYPTION_ALGORITHM: "FERNET"
-  DB_ENCRYPTION_KEY_ROTATION_GRACE_PERIOD: "86400"  # 24 hours in seconds
+  DB_ENCRYPTION_KEY_ROTATION_GRACE_PERIOD: "86400" # 24 hours in seconds
   # Directory for versioned encryption keys (mounted from secrets)
   DATABASE_ENCRYPTION_KEYS_DIR: "/run/secrets/db_encryption_keys"
   # Fields to encrypt (comma-separated)
   DB_ENCRYPTED_FIELDS: "email,phone,medical_notes,patient_name"
-
 externalSecrets:
   enabled: false
   secretStoreRef:
@@ -232,14 +202,12 @@ externalSecrets:
     kind: "ClusterSecretStore"
   # Refresh interval - how often to check for updates from AWS Secrets Manager
   # Shorter intervals mean faster detection of changes but more API calls
-  refreshInterval: "5m"  # Check every 5 minutes (default: 1h)
-  
+  refreshInterval: "5m" # Check every 5 minutes (default: 1h)
   # Retry settings for failed secret syncs
   retrySettings:
-    maxRetries: 5           # Number of retry attempts before giving up
-    retryInterval: "10s"    # Initial backoff between retries
-    retryIntervalMax: "5m"  # Maximum backoff between retries
-  
+    maxRetries: 5 # Number of retry attempts before giving up
+    retryInterval: "10s" # Initial backoff between retries
+    retryIntervalMax: "5m" # Maximum backoff between retries
   # AWS Secrets Manager keys for each secret type
   # These should contain the actual secrets in your AWS account
   # Structure:
@@ -253,7 +221,6 @@ externalSecrets:
   adminKey: "staging/backend/admin"
   jwtKeysKey: "staging/backend/jwt-keys"
   oidcKey: "staging/backend/oidc"
-
 gitops:
   argo:
     preSyncSecretCheck:
@@ -263,72 +230,61 @@ gitops:
       timeoutSeconds: 60
       # Negative means it runs early (but will wait until secrets exist).
       syncWave: "-5"
-
 jwt:
   enabled: true
-
   # The algorithm your code expects (validate_jwt_keys uses this)
   algorithm: RS256
-
   issuer: "my-backend"
   audience: "my-frontend"
-
   # Use ExternalSecret-created JWT keys secret (replaces manual backend-jwt-keys)
   existingSecret: "flask-app-jwt-keys"
-
   # Keys inside that secret
   privateKeyKey: "JWT_PRIVATE_KEY"
   publicKeyKey: "JWT_PUBLIC_KEY"
-
   # IMPORTANT: leave this false in real envs; keys come from existingSecret
   createSecret: false
-
 # Rotation configuration for secrets
 rotation:
   # JWT key rotation settings
   jwt:
-    enabled: false  # Enable per environment (staging/prod)
-    schedule: "0 2 * * 0"  # Cron: Weekly on Sunday at 2 AM
-    gracePeriodDays: 7  # Old keys remain valid for 7 days
-    retention: 2  # Keep 2 versions (current + previous)
+    enabled: false # Enable per environment (staging/prod)
+    schedule: "0 2 * * 0" # Cron: Weekly on Sunday at 2 AM
+    gracePeriodDays: 7 # Old keys remain valid for 7 days
+    retention: 2 # Keep 2 versions (current + previous)
     serviceAccount:
       create: true
       name: "flask-app-jwt-rotator"
-      annotations: {}  # Add IRSA annotation per environment
-  
+      annotations: {} # Add IRSA annotation per environment
   # Database encryption key rotation settings
   database:
-    enabled: false  # Enable per environment
-    schedule: "0 3 1 * *"  # Cron: Monthly on 1st day at 3 AM
-    gracePeriodDays: 30  # Old keys can decrypt for 30 days
-    retention: 2  # Keep 2 versions during migration
-    batchSize: 100  # Records per batch during re-encryption
-    keyVersions: ["v1"]  # List of key versions to sync from AWS (dynamically updated by rotation)
+    enabled: false # Enable per environment
+    schedule: "0 3 1 * *" # Cron: Monthly on 1st day at 3 AM
+    gracePeriodDays: 30 # Old keys can decrypt for 30 days
+    retention: 2 # Keep 2 versions during migration
+    batchSize: 100 # Records per batch during re-encryption
+    keyVersions: ["v1"] # List of key versions to sync from AWS (dynamically updated by rotation)
     serviceAccount:
       create: true
       name: "flask-app-db-key-rotator"
-      annotations: {}  # Add IRSA annotation per environment
-  
+      annotations: {} # Add IRSA annotation per environment
   # Reloader for automatic pod restart on secret changes
   reloader:
-    enabled: false  # Set to true to enable Stakater Reloader integration
-    autoRestart: true  # Auto-restart pods when secrets change
-
+    enabled: false # Set to true to enable Stakater Reloader integration
+    autoRestart: true # Auto-restart pods when secrets change
 # Monitoring configuration (Prometheus Operator)
 monitoring:
-  enabled: false  # Enable per environment
+  enabled: false # Enable per environment
   serviceMonitor:
     enabled: true
     interval: 30s
     scrapeTimeout: 10s
-    labels: {}  # Additional labels for ServiceMonitor
+    labels: {} # Additional labels for ServiceMonitor
     metricRelabelings: []
     relabelings: []
   prometheusRule:
     enabled: true
-    labels: {}  # Additional labels for PrometheusRule
-    additionalRules: []  # Custom alerting rules
-
+    labels: {} # Additional labels for PrometheusRule
+    additionalRules: [] # Custom alerting rules
 # --- NEW SECTION: Sensitive configuration ---
 # These values will be loaded into a Secret
 # DO NOT put default passwords here. Set them during deployment.
@@ -341,7 +297,6 @@ secrets:
   # DB credentials are provided by ExternalSecrets
   # Additional secrets can be added here
   API_TEST_KEY: ""
-
 # ==============================================================================
 # OIDC/Keycloak Configuration
 # ==============================================================================
@@ -349,31 +304,24 @@ secrets:
 # Requires: authlib Python library in Flask application
 # ==============================================================================
 oidc:
-  enabled: false  # Enable per environment (staging/prod)
-  
+  enabled: false # Enable per environment (staging/prod)
   # Keycloak realm and endpoints
   issuer: "http://keycloak.keycloak.svc.cluster.local/realms/platform"
-  
   # Client configuration (secrets from ExternalSecret)
-  clientId: "flask-backend"  # Confidential client in Keycloak
-  
+  clientId: "flask-backend" # Confidential client in Keycloak
   # Scopes to request
   scopes: "openid profile email groups"
-  
   # Token validation settings
   audience: "flask-backend"
   algorithms: ["RS256"]
-  
   # Group claim for RBAC mapping
   groupsClaim: "groups"
-  
   # Role mappings (Keycloak groups -> Flask roles)
   roleMapping:
     "/platform-admins": "admin"
     "/developers": "developer"
-    
   # Secret containing OIDC_CLIENT_ID and OIDC_CLIENT_SECRET
-  existingSecret: ""  # Auto-generated: flask-app-oidc
+  existingSecret: "" # Auto-generated: flask-app-oidc
 # ==============================================================================
 # BFF (Backend-for-Frontend) Authentication Mode
 # ==============================================================================
@@ -382,14 +330,12 @@ oidc:
 # umbrella chart for unified authentication.
 # ==============================================================================
 bff:
-  enabled: false  # Enable when deploying via platform-app umbrella chart
-  
+  enabled: false # Enable when deploying via platform-app umbrella chart
   # Internal secret for nginx -> backend trust verification
   # This MUST match the X-Internal-Auth header set by nginx gateway
   internalSecretRef:
-    name: ""  # Secret name containing the internal secret
+    name: "" # Secret name containing the internal secret
     key: "internal-secret"
-  
   # oauth2-proxy header names (should match nginx config)
   headers:
     sub: "X-Auth-Request-User"
@@ -398,16 +344,12 @@ bff:
     groups: "X-Auth-Request-Groups"
     token: "X-Forwarded-Access-Token"
     internalAuth: "X-Internal-Auth"
-  
   # Defense-in-depth: also validate the forwarded JWT
   validateJwt: true
-  
   # JIT (Just-In-Time) user provisioning
   jitProvision: true
-  
   # Role source: "jwt" (from token) or "db" (from database)
   rolesSource: "jwt"
-  
   # CSRF protection (required for cookie-based auth)
   csrf:
     enabled: true
