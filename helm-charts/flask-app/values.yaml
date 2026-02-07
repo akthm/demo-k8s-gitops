@@ -11,7 +11,7 @@ secretNames:
   flaskSecret: "" # External Secrets - Flask SECRET_KEY, etc
   adminCredentials: "" # External Secrets - Initial admin user
 image:
-  repository: "akthm/demo-back"
+  repository: "docker.io/akthm/demo-back"
   pullPolicy: IfNotPresent
   tag: "1.1.6" # ArgoCD will override this with your git commit SHA
 service:
