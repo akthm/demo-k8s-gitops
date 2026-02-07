@@ -302,7 +302,7 @@ backend:
     BFF_HEADER_USERNAME: "X-Auth-Request-Preferred-Username"
     BFF_HEADER_GROUPS: "X-Auth-Request-Groups"
     BFF_TOKEN_HEADER: "X-Forwarded-Access-Token"
-    BFF_VALIDATE_JWT: "true"
+    BFF_VALIDATE_JWT: "false"  # Disabled - oauth2-proxy validates tokens
     BFF_JIT_PROVISION: "true"
     BFF_ROLES_SOURCE: "jwt"
     CSRF_ENABLED: "true"
@@ -328,12 +328,12 @@ backend:
     existingSecret: "platform-backend-oidc"
   
   # ------------------------------------------------------------------------------
-  # JWT Configuration - Disabled in BFF mode (oauth2-proxy handles auth)
+  # JWT Configuration - Disabled in BFF mode
   # ------------------------------------------------------------------------------
   jwt:
-    enabled: false  # Not needed in BFF mode - oauth2-proxy handles authentication
+    enabled: false  # Disabled - oauth2-proxy handles all token validation
     algorithm: RS256
-    issuer: "https://api.adaas-il.com"
+    issuer: "https://keycloak.adaas-il.com/realms/platform"
     audience: "flask-backend"
   
   # ------------------------------------------------------------------------------
