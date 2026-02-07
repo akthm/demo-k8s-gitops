@@ -211,7 +211,7 @@ backend:
   # These values are passed to the flask-app subchart
   # See helm-charts/flask-app/values.yaml for all options
   
-  replicaCount: 2
+  replicaCount: 1
   
   # image: # dont need to override image for OCI staging - use default from flask-app/values.yaml
   #   repository: akthm/demo-back

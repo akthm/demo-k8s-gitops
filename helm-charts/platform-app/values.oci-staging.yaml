@@ -216,12 +216,7 @@ backend:
   enabled: true
   
   replicaCount: 1
-  
-  image:
-    repository: "docker.io/akthm/demo-back"
-    tag: "1.1.4"
-    pullPolicy: IfNotPresent
-  
+
   service:
     type: ClusterIP
     port: 5000
