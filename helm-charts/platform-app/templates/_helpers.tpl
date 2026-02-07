@@ -85,14 +85,14 @@ Redis connection URL for oauth2-proxy
 Backend service URL (internal cluster DNS)
 */}}
 {{- define "platform-app.backend.url" -}}
-{{- printf "http://%s-backend:%d" .Release.Name (int .Values.backend.service.port) }}
+{{- printf "%s-backend:%d" .Release.Name (int .Values.backend.service.port) }}
 {{- end }}
 
 {{/*
 Frontend service URL (internal cluster DNS)
 */}}
 {{- define "platform-app.frontend.url" -}}
-{{- printf "http://%s-frontend:%d" .Release.Name (int .Values.frontend.service.port) }}
+{{- printf "%s-frontend:%d" .Release.Name (int .Values.frontend.service.port) }}
 {{- end }}
 
 {{/*

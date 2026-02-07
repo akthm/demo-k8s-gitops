@@ -56,15 +56,15 @@ data:
     # Upstream Definitions (using environment variables)
     # ==============================================================================
     upstream backend_api {
-        server {{ printf "${BACKEND_URL}" | trimPrefix "http://" }};
+        server ${BACKEND_URL};
     }
 
     upstream frontend_app {
-        server {{ printf "${FRONTEND_URL}" | trimPrefix "http://" }};
+        server ${FRONTEND_URL};
     }
 
     upstream oauth2_proxy {
-        server {{ printf "${OAUTH2_PROXY_URL}" | trimPrefix "http://" }};
+        server ${OAUTH2_PROXY_URL};
     }
 
     # ==============================================================================

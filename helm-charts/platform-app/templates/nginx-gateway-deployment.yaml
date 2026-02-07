@@ -50,7 +50,7 @@ spec:
               value: {{ include "platform-app.frontend.url" . | quote }}
             # OAuth2 Proxy URL
             - name: OAUTH2_PROXY_URL
-              value: "http://{{ include "platform-app.oauth2proxy.name" . }}:{{ .Values.oauth2Proxy.service.port }}"
+              value: "{{ include "platform-app.oauth2proxy.name" . }}:{{ .Values.oauth2Proxy.service.port }}"
           volumeMounts:
             - name: config
               mountPath: /etc/nginx/nginx.conf
