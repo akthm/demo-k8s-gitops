@@ -16,7 +16,7 @@ secretNames:
 image:
   repository: akthm/demo-back  # Change this
   pullPolicy: IfNotPresent
-  tag: "1.0.14" # ArgoCD will override this with your git commit SHA
+  tag: "1.1.4" # ArgoCD will override this with your git commit SHA
 
 service:
   type: ClusterIP
