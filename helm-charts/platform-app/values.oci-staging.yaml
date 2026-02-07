@@ -251,16 +251,19 @@ backend:
       name: "oci-vault"
       kind: "ClusterSecretStore"
     refreshInterval: "10m"
-    retrySettings:
-      maxRetries: 8
-      retryInterval: "15s"
-      retryIntervalMax: "10m"
     appSecretKey: "flask-app"
     databaseKey: "flask-app"
-    flaskAppKey: "flask-app"
-    adminKey: "flask-app"
-    jwtKeysKey: "flask-app"
-    oidcKey: "flask-app"
+    # BFF mode: these secrets not needed
+    initialAdminSecretEnabled: false
+  
+  # ------------------------------------------------------------------------------
+  # Secret Names - Configure for BFF mode
+  # ------------------------------------------------------------------------------
+  secretNames:
+    databaseCredentials: "flask-app-db-credentials"
+    encryptionKeys: "flask-app-encryption-keys"
+    flaskSecret: ""  # Not needed in BFF mode
+    adminCredentials: ""  # Not needed in BFF mode
   
   # ------------------------------------------------------------------------------
   # BFF Mode Configuration
@@ -321,33 +324,29 @@ backend:
     roleMapping:
       "/platform-admins": "admin"
       "/developers": "developer"
-    existingSecret: "flask-app-oidc"
+    # Secret created by external-secret-oidc.yaml with fullname prefix
+    existingSecret: "platform-backend-oidc"
   
   # ------------------------------------------------------------------------------
-  # JWT Configuration
+  # JWT Configuration - Disabled in BFF mode (oauth2-proxy handles auth)
   # ------------------------------------------------------------------------------
   jwt:
-    enabled: true
+    enabled: false  # Not needed in BFF mode - oauth2-proxy handles authentication
     algorithm: RS256
-    # UPDATE: Set your actual domain
     issuer: "https://api.adaas-il.com"
     audience: "flask-backend"
-    existingSecret: "flask-app-jwt-keys"
-    privateKeyKey: "JWT_PRIVATE_KEY"
-    publicKeyKey: "JWT_PUBLIC_KEY"
-    createSecret: false
   
   # ------------------------------------------------------------------------------
   # Rotation Configuration
   # ------------------------------------------------------------------------------
   rotation:
     jwt:
-      enabled: true
+      enabled: false  # Disabled in BFF mode - no JWT keys to rotate
       schedule: "0 2 * * 0"  # Weekly on Sunday at 2 AM
       gracePeriodDays: 7
       retention: 2
       serviceAccount:
-        create: true
+        create: false
         name: "flask-app-jwt-rotator"
     database:
       enabled: true
