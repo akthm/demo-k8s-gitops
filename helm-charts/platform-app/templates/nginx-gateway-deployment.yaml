@@ -53,8 +53,14 @@ spec:
               value: "http://{{ include "platform-app.oauth2proxy.name" . }}:{{ .Values.oauth2Proxy.service.port }}"
           volumeMounts:
             - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: config
               mountPath: /etc/nginx/templates
               readOnly: true
+            - name: conf-d
+              mountPath: /etc/nginx/conf.d
             - name: tmp
               mountPath: /tmp
             - name: cache
@@ -89,6 +95,8 @@ spec:
         - name: config
           configMap:
             name: {{ include "platform-app.fullname" . }}-nginx-gateway-config
+        - name: conf-d
+          emptyDir: {}
         - name: tmp
           emptyDir: {}
         - name: cache

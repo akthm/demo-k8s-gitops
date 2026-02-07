@@ -281,8 +281,8 @@ backend:
     # JWT_LEEWAY: "30"
     API_TEST_MODE: "false"
     DB_FALLBACK_TO_SQLITE_IN_MEMORY: "false"
-    # PostgreSQL for OCI ATP
-    DB_TYPE: "postgresql"
+    # Oracle for OCI ATP with wallet
+    DB_TYPE: "oracle"
     # Encryption settings
     DB_ENCRYPTION_ENABLED: "true"
     DB_ENCRYPTION_ALGORITHM: "FERNET"

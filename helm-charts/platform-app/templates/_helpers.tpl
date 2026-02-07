@@ -73,7 +73,11 @@ Redis connection URL for oauth2-proxy
 {{- if .Values.global.bff.redis.external.enabled }}
 {{- .Values.global.bff.redis.external.url }}
 {{- else }}
+{{- if .Values.redis.auth.enabled }}
+{{- printf "redis://:%s@%s-redis-master:6379" "$(REDIS_PASSWORD)" .Release.Name }}
+{{- else }}
 {{- printf "redis://%s-redis-master:6379" .Release.Name }}
+{{- end }}
 {{- end }}
 {{- end }}
 

@@ -7,6 +7,37 @@ metadata:
     {{- include "platform-app.labels" . | nindent 4 }}
     app.kubernetes.io/component: nginx-gateway
 data:
+  nginx.conf: |
+    # Custom nginx.conf for non-root execution
+    worker_processes auto;
+    error_log /dev/stderr info;
+    pid /var/run/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+        
+        access_log /dev/stdout main;
+        
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        client_max_body_size 10m;
+        
+        # Include server configs
+        include /etc/nginx/conf.d/*.conf;
+    }
+  
   default.conf.template: |
     # ==============================================================================
     # Nginx BFF (Backend for Frontend) Gateway Configuration
