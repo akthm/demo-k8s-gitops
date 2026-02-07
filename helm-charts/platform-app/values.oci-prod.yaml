@@ -266,19 +266,19 @@ backend:
   config:
     DEBUG: "0"
     DOCKERIZED: "true"
-    GUNICORN_WORKERS: "4"
+    GUNICORN_WORKERS: "1" ## NEVER INCREASE causes DB race conditions with OCI ATP - use autoscaling instead
     BACKEND_PORT: "5000"
     # UPDATE: Set your actual domain
     CORS_ORIGINS: "https://app.adaas-il.com,https://adaas-il.com"
-    SQLALCHEMY_TRACK_MODIFICATIONS: "False"
-    JWT_ACCESS_TTL: "600"  # Shorter for production
-    JWT_REFRESH_TTL: "2592000"
-    JWT_COOKIE_NAME: "rt"
-    JWT_CSRF_COOKIE: "csrf_refresh_root"
-    JWT_COOKIE_SECURE: "true"
-    JWT_COOKIE_SAMESITE: "Strict"  # Stricter for production
-    JWT_COOKIE_DOMAIN: ""
-    JWT_LEEWAY: "30"
+    # SQLALCHEMY_TRACK_MODIFICATIONS: "False"
+    # JWT_ACCESS_TTL: "600"  # Shorter for production
+    # JWT_REFRESH_TTL: "2592000"
+    # JWT_COOKIE_NAME: "rt"
+    # JWT_CSRF_COOKIE: "csrf_refresh_root"
+    # JWT_COOKIE_SECURE: "true"
+    # JWT_COOKIE_SAMESITE: "Strict"  # Stricter for production
+    # JWT_COOKIE_DOMAIN: ""
+    # JWT_LEEWAY: "30"
     API_TEST_MODE: "false"
     DB_FALLBACK_TO_SQLITE_IN_MEMORY: "false"
     DB_TYPE: "postgresql"
