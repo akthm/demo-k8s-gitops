@@ -181,8 +181,8 @@ redis:
   architecture: standalone
   image:
     registry: docker.io
-    repository: bitnami/redis
-    tag: "7.4.1-debian-12-r1"  # Changed from invalid r2 to valid r1
+    repository: bitnamilegacy/redis
+    tag: "8.2.1-debian-12-r0"  
   auth:
     enabled: true
     existingSecret: ""
