@@ -133,7 +133,7 @@ argocd:
 oidc:
   enabled: true
   # UPDATE: Set your actual domain
-  issuer: "https://keycloak.adaas-il.com/realms/platform"
+  issuer: "https://keycloak.adaas-il.com/realms/master"
   clientId: "argocd"
   clientSecretRef:
     name: "argocd-oidc"

@@ -310,7 +310,7 @@ backend:
   oidc:
     enabled: true
     # UPDATE: Set your actual domain
-    issuer: "https://keycloak.adaas-il.com/realms/platform"
+    issuer: "https://keycloak.adaas-il.com/realms/master"
     clientId: "flask-backend"
     scopes: "openid profile email groups"
     audience: "flask-backend"
@@ -328,7 +328,7 @@ backend:
   jwt:
     enabled: false  # Disabled - oauth2-proxy handles all token validation
     algorithm: RS256
-    issuer: "https://keycloak.adaas-il.com/realms/platform"
+    issuer: "https://keycloak.adaas-il.com/realms/master"
     audience: "flask-backend"
   
   # ------------------------------------------------------------------------------
