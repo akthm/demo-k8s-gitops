@@ -234,9 +234,42 @@ spec:
               value: {{ .Values.bff.csrf.headerName | quote }}
               {{- end }}
             {{- if .Values.database.wallet.enabled }}
+            # ================================================================
+            # Oracle ATP Configuration (wallet-based authentication)
+            # ================================================================
             # TNS_ADMIN points to extracted wallet directory
             - name: TNS_ADMIN
-              value: "/opt/oracle/wallet"
+              value: {{ .Values.database.wallet.mountPath | default "/opt/oracle/wallet" | quote }}
+            # Oracle Wallet Directory (required by python-oracledb)
+            - name: ORACLE_WALLET_DIR
+              value: {{ .Values.database.wallet.mountPath | default "/opt/oracle/wallet" | quote }}
+            # Oracle DSN (TNS alias from tnsnames.ora)
+            - name: ORACLE_DSN
+              value: {{ .Values.database.wallet.tnsAlias | quote }}
+            # Oracle credentials from secret
+            - name: ORACLE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretNames.databaseCredentials }}
+                  key: DB_USER
+            - name: ORACLE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretNames.databaseCredentials }}
+                  key: DB_PASSWORD
+            # Optional: Oracle connection pool settings
+            {{- if .Values.database.wallet.poolMin }}
+            - name: ORACLE_POOL_MIN
+              value: {{ .Values.database.wallet.poolMin | quote }}
+            {{- end }}
+            {{- if .Values.database.wallet.poolMax }}
+            - name: ORACLE_POOL_MAX
+              value: {{ .Values.database.wallet.poolMax | quote }}
+            {{- end }}
+            {{- if .Values.database.wallet.poolIncrement }}
+            - name: ORACLE_POOL_INCREMENT
+              value: {{ .Values.database.wallet.poolIncrement | quote }}
+            {{- end }}
             {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
@@ -257,7 +290,7 @@ spec:
           {{- if .Values.database.wallet.enabled }}
           # Mount extracted wallet directory
           - name: wallet-dir
-            mountPath: /opt/oracle/wallet
+            mountPath: {{ .Values.database.wallet.mountPath | default "/opt/oracle/wallet" }}
             readOnly: true
           {{- end }}
           # Mount database encryption keys as directory

@@ -236,6 +236,11 @@ backend:
       enabled: true
       tnsAlias: "stagingdb_high"
       refreshInterval: "24h"
+      mountPath: "/opt/oracle/wallet"
+      # Connection pool settings for python-oracledb
+      poolMin: 2
+      poolMax: 10
+      poolIncrement: 1
   
   # ------------------------------------------------------------------------------
   # External Secrets - OCI Vault

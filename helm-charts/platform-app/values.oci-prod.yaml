@@ -250,6 +250,11 @@ backend:
       enabled: true
       tnsAlias: "proddb_high"
       refreshInterval: "24h"
+      mountPath: "/opt/oracle/wallet"
+      # Production pool settings for higher concurrency
+      poolMin: 5
+      poolMax: 20
+      poolIncrement: 2
   
   # External Secrets - OCI Vault
   externalSecrets:
