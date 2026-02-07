@@ -279,6 +279,12 @@ spec:
             - name: ORACLE_POOL_INCREMENT
               value: {{ .Values.database.wallet.poolIncrement | quote }}
             {{- end }}
+            # Wallet password for encrypted PEM files
+            - name: WALLET_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "flask-app.fullname" . }}-db-wallet-password
+                  key: WALLET_PASSWORD
             {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
