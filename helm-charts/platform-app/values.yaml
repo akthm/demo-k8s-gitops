@@ -213,10 +213,10 @@ backend:
   
   replicaCount: 2
   
-  image:
-    repository: akthm/demo-back
-    tag: "1.0.14"
-    pullPolicy: IfNotPresent
+  # image: # dont need to override image for OCI staging - use default from flask-app/values.yaml
+  #   repository: akthm/demo-back
+  #   tag: "1.0.14"
+  #   pullPolicy: IfNotPresent
   
   service:
     type: ClusterIP
