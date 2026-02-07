@@ -221,10 +221,11 @@ backend:
   
   replicaCount: 3
   
-  image:
-    repository: "docker.io/akthm/demo-back"
-    tag: "1.1.3"
-    pullPolicy: IfNotPresent
+  # Image version controlled by flask-app/values.yaml - updated by CI/CD
+  # image:
+  #   repository: "docker.io/akthm/demo-back"
+  #   tag: "1.1.3"
+  #   pullPolicy: IfNotPresent
   
   service:
     type: ClusterIP

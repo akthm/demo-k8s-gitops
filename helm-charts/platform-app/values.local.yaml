@@ -59,10 +59,11 @@ backend:
   enabled: true
   replicaCount: 1
   
-  image:
-    repository: akthm/demo-back
-    tag: "latest"
-    pullPolicy: Always
+  # Image version controlled by flask-app/values.yaml - updated by CI/CD
+  # image:
+  #   repository: akthm/demo-back
+  #   tag: "latest"
+  #   pullPolicy: Always
   
   config:
     DEBUG: "1"
