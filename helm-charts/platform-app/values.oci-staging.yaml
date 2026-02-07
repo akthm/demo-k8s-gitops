@@ -215,8 +215,12 @@ redis:
 backend:
   enabled: true
   
-  replicaCount: 1
+  replicaCount: 2
   
+  image:
+    repository: "docker.io/akthm/demo-back"
+    tag: "1.1.4"
+    pullPolicy: IfNotPresent
   
   service:
     type: ClusterIP
