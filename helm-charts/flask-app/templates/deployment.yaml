@@ -283,9 +283,15 @@ spec:
           - secret:
               name: {{ .Values.secretNames.encryptionKeys | default "flask-app-encryption-keys" }}
               items:
+              {{- if .Values.rotation.database.keyVersions }}
               {{- range .Values.rotation.database.keyVersions }}
               - key: db_encryption_{{ . }}.key
                 path: {{ . }}.key
+              {{- end }}
+              {{- else }}
+              # Default to v1 if keyVersions not specified
+              - key: db_encryption_v1.key
+                path: v1.key
               {{- end }}
               - key: db_encryption_current.version
                 path: current.version

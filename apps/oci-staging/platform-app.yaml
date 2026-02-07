@@ -41,7 +41,6 @@ spec:
       valueFiles:
         - values.yaml
         - values.oci-staging.yaml
-      # Override release name for consistency
       releaseName: platform
 
   destination:
