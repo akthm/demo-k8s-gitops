@@ -107,8 +107,14 @@ spec:
               set -e
               echo "Extracting ATP wallet..."
               mkdir -p /wallet
-              # ATP wallets downloaded via API don't require password for extraction
-              unzip -o /wallet-download/wallet.zip -d /wallet
+              # Use wallet password from secret for password-protected wallet files
+              if [ -f /wallet-password/WALLET_PASSWORD ]; then
+                WALLET_PW=$(cat /wallet-password/WALLET_PASSWORD)
+                unzip -P "$WALLET_PW" -o /wallet-download/wallet.zip -d /wallet
+              else
+                # Fallback: try without password (for auto-login wallets)
+                unzip -o /wallet-download/wallet.zip -d /wallet
+              fi
               echo "Wallet extracted successfully"
               ls -la /wallet/
           volumeMounts:
@@ -117,6 +123,9 @@ spec:
               readOnly: true
             - name: wallet-dir
               mountPath: /wallet
+            - name: wallet-password
+              mountPath: /wallet-password
+              readOnly: true
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -306,6 +315,11 @@ spec:
       - name: wallet-bucket-info
         secret:
           secretName: {{ include "flask-app.fullname" . }}-wallet-bucket-info
+          defaultMode: 0400
+      # Wallet password from ExternalSecret
+      - name: wallet-password
+        secret:
+          secretName: {{ include "flask-app.fullname" . }}-wallet-password
           defaultMode: 0400
       # EmptyDir for downloaded wallet.zip
       - name: wallet-download
