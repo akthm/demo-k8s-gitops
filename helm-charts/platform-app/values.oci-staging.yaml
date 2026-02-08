@@ -76,7 +76,7 @@ oauth2Proxy:
   config:
     provider: "oidc"
     # UPDATE: Set your actual domain
-    oidcIssuerUrl: "https://keycloak.adaas-il.com/realms/platform"
+    oidcIssuerUrl: "https://keycloak.adaas-il.com/realms/master"
     clientId: "platform-bff"
     scope: "openid profile email groups"
     emailDomains:
