@@ -239,8 +239,8 @@ spec:
           resources:
             {{- toYaml .Values.migration.resources | nindent 12 }}
       
-      {{- if .Values.database.wallet.enabled }}
       volumes:
+        {{- if .Values.database.wallet.enabled }}
         - name: wallet-download
           emptyDir: {}
         - name: wallet
@@ -249,7 +249,9 @@ spec:
           secret:
             secretName: {{ .Values.database.wallet.passwordSecretName }}
             defaultMode: 0440
-      {{- end }}
+        {{- end }}
+        - name: instance
+          emptyDir: {}
       
       {{- with .Values.nodeSelector }}
       nodeSelector:
