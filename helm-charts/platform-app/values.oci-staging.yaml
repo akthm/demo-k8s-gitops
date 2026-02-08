@@ -37,10 +37,11 @@ global:
   bff:
     enabled: true
     # Cookie settings for production
-    cookieDomain: ""
-    cookieSecure: true
     sessionTTL: "8h"
     cookie:
+      name: "_oauth2_proxy"
+      secure: true
+      httpOnly: true
       sameSite: "lax"  # MUST be lowercase: lax, strict, or none
     # External secret configuration
     externalSecret:
@@ -92,7 +93,7 @@ oauth2Proxy:
     # Cookie configuration for OCI production
     cookieName: "_oauth2_proxy"
     cookieSecure: true
-    cookieDomain: ".adaas-il.com"
+    cookieDomain: ""  # Let it auto-detect from the request domain
     cookieSameSite: "lax"  # MUST be lowercase: lax, strict, or none
     cookieExpire: "8h"
     cookieRefresh: "30m"
@@ -104,6 +105,14 @@ oauth2Proxy:
     # Security settings
     skipProviderButton: true
     proxyPrefix: "/oauth2"
+    
+    # Additional security settings for CSRF
+    reverseProxy: true
+    realClientIPHeader: "X-Forwarded-For"
+    trustedIPs:
+      - "10.0.0.0/8"
+      - "172.16.0.0/12"
+      - "192.168.0.0/16"
   
   # Use External Secret for client credentials
   externalSecret:
@@ -445,7 +454,7 @@ frontend:
   image:
     # Full registry path for OCI
     repository: "docker.io/akthm/demo-front"
-    tag: "1.0.3"
+    tag: "1.2.0"
     pullPolicy: IfNotPresent
   
   service:
@@ -493,6 +502,11 @@ ingress:
     nginx.ingress.kubernetes.io/limit-rps: "100"
     nginx.ingress.kubernetes.io/limit-connections: "50"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # OAuth2-proxy specific annotations
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Forwarded-Port $server_port;
   # UPDATE: Set your actual domain
   hosts:
     - host: "app.adaas-il.com"
