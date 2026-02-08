@@ -108,6 +108,7 @@ spec:
               echo "Extracting ATP wallet..."
               apk add --no-cache unzip > /dev/null 2>&1
               mkdir -p /wallet
+              chown 1000:1000 /wallet
               # Use wallet password from secret for password-protected wallet files
               if [ -f /wallet-password/WALLET_PASSWORD ]; then
                 WALLET_PW=$(cat /wallet-password/WALLET_PASSWORD)
@@ -116,6 +117,7 @@ spec:
                 # Fallback: try without password (for auto-login wallets)
                 unzip -o /wallet-download/wallet.zip -d /wallet
               fi
+              chown -R 1000:1000 /wallet
               echo "Wallet extracted successfully"
               ls -la /wallet/
           volumeMounts:
@@ -128,9 +130,9 @@ spec:
               mountPath: /wallet-password
               readOnly: true
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
             allowPrivilegeEscalation: false
             capabilities:
               drop:
