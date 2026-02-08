@@ -99,26 +99,20 @@ spec:
         
         # Extract wallet.zip to /wallet directory
         - name: extract-wallet
-          image: alpine:3.19
+          image: busybox:1.36
           command:
             - sh
             - -c
             - |
               set -e
               echo "Extracting ATP wallet..."
-              apk add --no-cache unzip > /dev/null 2>&1
               mkdir -p /wallet
-              chown 1000:1000 /wallet
-              # Use wallet password from secret for password-protected wallet files
-              if [ -f /wallet-password/WALLET_PASSWORD ]; then
-                WALLET_PW=$(cat /wallet-password/WALLET_PASSWORD)
-                unzip -P "$WALLET_PW" -o /wallet-download/wallet.zip -d /wallet
-              else
-                # Fallback: try without password (for auto-login wallets)
-                unzip -o /wallet-download/wallet.zip -d /wallet
-              fi
-              chown -R 1000:1000 /wallet
-              echo "Wallet extracted successfully"
+              # ATP wallets downloaded via API don't require password for extraction
+              unzip -o /wallet-download/wallet.zip -d /wallet
+              # Update sqlnet.ora with absolute wallet path for python-oracledb
+              sed -i 's|DIRECTORY="?/network/admin"|DIRECTORY="{{ .Values.database.wallet.mountPath | default "/opt/oracle/wallet" }}"|g' /wallet/sqlnet.ora
+              echo "Wallet extracted and configured successfully"
+              cat /wallet/sqlnet.ora
               ls -la /wallet/
           volumeMounts:
             - name: wallet-download
@@ -126,13 +120,10 @@ spec:
               readOnly: true
             - name: wallet-dir
               mountPath: /wallet
-            - name: wallet-password
-              mountPath: /wallet-password
-              readOnly: true
           securityContext:
-            runAsNonRoot: false
-            runAsUser: 0
-            runAsGroup: 0
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
             allowPrivilegeEscalation: false
             capabilities:
               drop:
@@ -282,12 +273,6 @@ spec:
             - name: ORACLE_POOL_INCREMENT
               value: {{ .Values.database.wallet.poolIncrement | quote }}
             {{- end }}
-            # Wallet password for encrypted PEM files
-            - name: WALLET_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "flask-app.fullname" . }}-db-wallet-password
-                  key: WALLET_PASSWORD
             {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
@@ -324,11 +309,6 @@ spec:
       - name: wallet-bucket-info
         secret:
           secretName: {{ include "flask-app.fullname" . }}-wallet-bucket-info
-          defaultMode: 0400
-      # Wallet password from ExternalSecret
-      - name: wallet-password
-        secret:
-          secretName: {{ include "flask-app.fullname" . }}-wallet-password
           defaultMode: 0400
       # EmptyDir for downloaded wallet.zip
       - name: wallet-download
