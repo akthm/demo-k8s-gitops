@@ -97,20 +97,44 @@ spec:
               drop:
                 - ALL
         
-        # Extract wallet.zip to /wallet directory
+        # Extract wallet.zip to /wallet directory and decrypt PEM for thin mode
         - name: extract-wallet
-          image: busybox:1.36
+          image: alpine:3.19
           command:
             - sh
             - -c
             - |
               set -e
+              echo "Installing required tools..."
+              apk add --no-cache unzip openssl > /dev/null 2>&1
+              
               echo "Extracting ATP wallet..."
               mkdir -p /wallet
-              # ATP wallets downloaded via API don't require password for extraction
               unzip -o /wallet-download/wallet.zip -d /wallet
-              # Update sqlnet.ora with absolute wallet path for python-oracledb
+              
+              # Update sqlnet.ora with absolute wallet path
               sed -i 's|DIRECTORY="?/network/admin"|DIRECTORY="{{ .Values.database.wallet.mountPath | default "/opt/oracle/wallet" }}"|g' /wallet/sqlnet.ora
+              
+              # Decrypt the PEM file for python-oracledb thin mode
+              # The ewallet.pem is encrypted and requires wallet password
+              if [ -f /wallet-password/WALLET_PASSWORD ] && [ -f /wallet/ewallet.pem ]; then
+                echo "Decrypting ewallet.pem for thin mode..."
+                WALLET_PW=$(cat /wallet-password/WALLET_PASSWORD)
+                
+                # Decrypt the PKCS#8 encrypted private key
+                openssl pkcs8 -in /wallet/ewallet.pem -out /wallet/ewallet_decrypted.pem -passin "pass:${WALLET_PW}" 2>/dev/null
+                
+                if [ -f /wallet/ewallet_decrypted.pem ]; then
+                  # Replace encrypted PEM with decrypted version
+                  mv /wallet/ewallet_decrypted.pem /wallet/ewallet.pem
+                  echo "PEM file decrypted successfully"
+                else
+                  echo "Warning: Failed to decrypt PEM, connection may prompt for password"
+                fi
+              else
+                echo "No wallet password provided or no PEM file found"
+              fi
+              
               echo "Wallet extracted and configured successfully"
               cat /wallet/sqlnet.ora
               ls -la /wallet/
@@ -120,10 +144,12 @@ spec:
               readOnly: true
             - name: wallet-dir
               mountPath: /wallet
+            - name: wallet-password
+              mountPath: /wallet-password
+              readOnly: true
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
+            runAsNonRoot: false
+            runAsUser: 0
             allowPrivilegeEscalation: false
             capabilities:
               drop:
