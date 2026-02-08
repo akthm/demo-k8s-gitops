@@ -168,11 +168,14 @@ data:
         }
         
         # User info - get current user from session
+        # This endpoint checks authentication and returns user info as JSON
+        # Returns 401 if not authenticated, 200 with user data if authenticated
         location = /auth/userinfo {
+            # First, check authentication with oauth2-proxy
             auth_request /oauth2/auth;
             
-            # Return 401 if not authenticated (important for frontend to detect auth state)
-            error_page 401 = @userinfo_unauthorized;
+            # Handle 401 from auth_request - return JSON error instead of redirect
+            error_page 401 = /auth/userinfo-error;
             
             auth_request_set $auth_user $upstream_http_x_auth_request_user;
             auth_request_set $auth_email $upstream_http_x_auth_request_email;
@@ -180,12 +183,15 @@ data:
             auth_request_set $auth_groups $upstream_http_x_auth_request_groups;
             
             default_type application/json;
+            add_header Cache-Control "no-store, no-cache, must-revalidate" always;
             return 200 '{"sub":"$auth_user","email":"$auth_email","username":"$auth_username","groups":"$auth_groups"}';
         }
         
         # Handle unauthorized userinfo requests - return 401 JSON
-        location @userinfo_unauthorized {
+        location = /auth/userinfo-error {
+            internal;
             default_type application/json;
+            add_header Cache-Control "no-store, no-cache, must-revalidate" always;
             return 401 '{"error":"unauthorized","message":"Not authenticated"}';
         }
         
