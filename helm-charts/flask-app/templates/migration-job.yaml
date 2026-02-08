@@ -42,13 +42,29 @@ spec:
               set -e
               echo "Downloading wallet from OCI Object Storage..."
               oci os object get \
-                --namespace {{ .Values.database.wallet.namespace }} \
-                --bucket-name {{ .Values.database.wallet.bucketName }} \
-                --name {{ .Values.database.wallet.objectName }} \
+                --namespace "${WALLET_NAMESPACE}" \
+                --bucket-name "${WALLET_BUCKET}" \
+                --name "${WALLET_OBJECT}" \
                 --file /wallet-download/wallet.zip \
                 --auth instance_principal
               echo "Wallet downloaded successfully"
               ls -lh /wallet-download/
+          env:
+            - name: WALLET_NAMESPACE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "flask-app.fullname" . }}-wallet-bucket-info
+                  key: namespace
+            - name: WALLET_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "flask-app.fullname" . }}-wallet-bucket-info
+                  key: bucket_name
+            - name: WALLET_OBJECT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "flask-app.fullname" . }}-wallet-bucket-info
+                  key: object_name
           volumeMounts:
             - name: wallet-download
               mountPath: /wallet-download
