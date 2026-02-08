@@ -193,7 +193,7 @@ migration:
   # Backend migration mode: "alembic" (Flask-Migrate), "auto" (db.create_all), "manual"
   dbMode: "alembic"
   # Flask app factory path (for flask db commands)
-  flaskApp: "src.app:create_app"
+  flaskApp: "app:create_app"
   # Job configuration
   backoffLimit: 3 # Retry failed migrations up to 3 times
   ttlSecondsAfterFinished: 300 # Clean up Job pods after 5 minutes

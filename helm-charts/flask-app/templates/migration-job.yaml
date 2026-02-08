@@ -211,7 +211,7 @@ spec:
             - name: DB_MIGRATION_MODE
               value: "{{ .Values.migration.dbMode | default "alembic" }}"
             - name: FLASK_APP
-              value: "{{ .Values.migration.flaskApp | default "src.app:create_app" }}"
+              value: "{{ .Values.migration.flaskApp | default "app:create_app" }}"
             
             {{- with .Values.migration.extraEnv }}
             {{- toYaml . | nindent 12 }}
