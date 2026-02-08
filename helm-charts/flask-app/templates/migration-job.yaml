@@ -177,22 +177,24 @@ spec:
               
               echo "Migration completed successfully"
           env:
-            # Database credentials from ExternalSecret
-            - name: DB_USER
+            # Database credentials from ExternalSecret (use same keys as deployment)
+            - name: ORACLE_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secretNames.databaseCredentials }}
-                  key: username
-            - name: DB_PASSWORD
+                  key: DB_USER
+            - name: ORACLE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secretNames.databaseCredentials }}
-                  key: password
-            - name: DB_DSN
+                  key: DB_PASSWORD
+            - name: ORACLE_DSN
+              value: {{ .Values.database.wallet.tnsAlias | quote }}
+            - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secretNames.databaseCredentials }}
-                  key: dsn
+                  key: DATABASE_URL
             
             {{- if .Values.database.wallet.enabled }}
             # Oracle wallet configuration
