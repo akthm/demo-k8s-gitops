@@ -216,6 +216,12 @@ backend:
   enabled: true
   
   replicaCount: 1
+  
+  # Backend image configuration
+  image:
+    repository: "akthm/demo-back"
+    tag: "1.2.1"  # feat/oracle branch with wallet_password support
+    pullPolicy: IfNotPresent
 
   service:
     type: ClusterIP
@@ -227,6 +233,25 @@ backend:
   # ------------------------------------------------------------------------------
   db:
     enabled: false
+  
+  # ------------------------------------------------------------------------------
+  # Database Migration Configuration
+  # ------------------------------------------------------------------------------
+  migration:
+    enabled: true
+    mode: "upgrade"  # Options: upgrade, downgrade, init
+    version: "v1"  # Increment to re-run migration
+    dbMode: "auto"  # Use db.create_all() until Flask-Migrate is implemented
+    flaskApp: "src.app:create_app"
+    backoffLimit: 3
+    ttlSecondsAfterFinished: 300
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
   
   # ------------------------------------------------------------------------------
   # Oracle ATP Database Wallet Configuration
