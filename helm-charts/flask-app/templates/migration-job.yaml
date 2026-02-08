@@ -101,7 +101,7 @@ spec:
         
         # Decrypt ewallet.pem with OpenSSL
         - name: decrypt-wallet
-          image: alpine/openssl:latest
+          image: docker.io/alpine/openssl:latest
           command:
             - sh
             - -c
