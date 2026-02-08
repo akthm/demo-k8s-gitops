@@ -149,6 +149,7 @@ spec:
       
       containers:
         - name: migration
+          registry: {{ .Values.image.registry | default .Values.image.repository | default "docker.io" }} 
           image: "{{ .Values.migration.image.repository | default .Values.image.repository }}:{{ .Values.migration.image.tag | default .Values.image.tag }}"
           imagePullPolicy: {{ .Values.migration.image.pullPolicy | default .Values.image.pullPolicy }}
           command:
