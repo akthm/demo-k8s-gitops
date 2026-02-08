@@ -174,25 +174,22 @@ data:
             # First, check authentication with oauth2-proxy
             auth_request /oauth2/auth;
             
-            # Handle 401 from auth_request - return JSON error instead of redirect
-            error_page 401 = /auth/userinfo-error;
-            
             auth_request_set $auth_user $upstream_http_x_auth_request_user;
             auth_request_set $auth_email $upstream_http_x_auth_request_email;
             auth_request_set $auth_username $upstream_http_x_auth_request_preferred_username;
             auth_request_set $auth_groups $upstream_http_x_auth_request_groups;
             
+            # Check if user is authenticated (sub/user claim is set)
+            # If not authenticated, return 401
+            if ($auth_user = "") {
+                add_header Content-Type "application/json" always;
+                add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+                return 401 '{"error":"unauthorized","message":"Not authenticated"}';
+            }
+            
             default_type application/json;
             add_header Cache-Control "no-store, no-cache, must-revalidate" always;
             return 200 '{"sub":"$auth_user","email":"$auth_email","username":"$auth_username","groups":"$auth_groups"}';
-        }
-        
-        # Handle unauthorized userinfo requests - return 401 JSON
-        location = /auth/userinfo-error {
-            internal;
-            default_type application/json;
-            add_header Cache-Control "no-store, no-cache, must-revalidate" always;
-            return 401 '{"error":"unauthorized","message":"Not authenticated"}';
         }
         
         # CSRF token endpoint - returns token for double-submit pattern
