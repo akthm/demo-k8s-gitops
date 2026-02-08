@@ -160,6 +160,29 @@ spec:
               echo "Starting database migration..."
               echo "Migration mode: {{ .Values.migration.mode | default "upgrade" }}"
               
+              # Create a wrapper to patch Flask instance_path
+              cat > /tmp/app_wrapper.py << 'EOFPYTHON'
+              import os
+              import sys
+              from flask import Flask as OriginalFlask
+              
+              # Patch Flask to use /app/instance
+              class Flask(OriginalFlask):
+                  def __init__(self, *args, **kwargs):
+                      if 'instance_path' not in kwargs:
+                          kwargs['instance_path'] = '/app/instance'
+                      super().__init__(*args, **kwargs)
+              
+              # Replace Flask in app module
+              import flask
+              flask.Flask = Flask
+              
+              # Now import the app
+              from app import create_app
+              EOFPYTHON
+              
+              export FLASK_APP=/tmp/app_wrapper.py:create_app
+              
               {{- if eq (.Values.migration.mode | default "upgrade") "init" }}
               echo "Initializing Alembic migrations..."
               flask db init
