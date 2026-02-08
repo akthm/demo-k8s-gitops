@@ -183,7 +183,12 @@ spec:
               
               export FLASK_APP=/tmp/app_wrapper.py:create_app
               
-              {{- if eq (.Values.migration.mode | default "upgrade") "init" }}
+              {{- if eq (.Values.migration.dbMode | default "alembic") "auto" }}
+              echo "DB Mode: auto - Using db.create_all() for schema management"
+              echo "Initializing app to trigger automatic table creation..."
+              python -c 'from app import create_app; app = create_app(); print("Tables created automatically during app init")'
+              echo "Migration completed successfully (auto mode)"
+              {{- else if eq (.Values.migration.mode | default "upgrade") "init" }}
               echo "Initializing Alembic migrations..."
               flask db init
               flask db migrate -m "Initial schema"
