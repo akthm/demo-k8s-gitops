@@ -238,7 +238,7 @@ backend:
   # Database Migration Configuration
   # ------------------------------------------------------------------------------
   migration:
-    enabled: true
+    enabled: false
     mode: "upgrade"  # Options: upgrade, downgrade, init
     version: "v1"  # Increment to re-run migration
     dbMode: "auto"  # Use db.create_all() until Flask-Migrate is implemented
