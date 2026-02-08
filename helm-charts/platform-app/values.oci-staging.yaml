@@ -19,6 +19,8 @@ global:
   
   # OCI environment
   environment: "oci-staging"
+
+  domain: "app.adaas-il.com"
   
   # Security settings
   security:
