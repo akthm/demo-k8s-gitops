@@ -74,6 +74,21 @@ data:
     limit_req_zone $binary_remote_addr zone=auth_limit:10m rate={{ .Values.nginxGateway.rateLimiting.auth.rate }};
 
     # ==============================================================================
+    # Map variables for proper X-Forwarded headers
+    # ==============================================================================
+    # Use X-Forwarded-Port from ingress if present, otherwise use 443 for HTTPS
+    map $http_x_forwarded_port $forwarded_port {
+        default $http_x_forwarded_port;
+        ''      443;
+    }
+    
+    # Use X-Forwarded-Proto from ingress if present, otherwise assume https
+    map $http_x_forwarded_proto $forwarded_proto {
+        default $http_x_forwarded_proto;
+        ''      https;
+    }
+
+    # ==============================================================================
     # Main Server Block
     # ==============================================================================
     server {
@@ -108,7 +123,7 @@ data:
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Proto $forwarded_proto;
             proxy_set_header X-Forwarded-Uri $request_uri;
             
             # Increase buffer size for large JWT tokens in headers
@@ -129,9 +144,9 @@ data:
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Proto $forwarded_proto;
             proxy_set_header X-Forwarded-Host $host;
-            proxy_set_header X-Forwarded-Port $server_port;
+            proxy_set_header X-Forwarded-Port $forwarded_port;
             
             # Important: pass cookies for session handling
             proxy_set_header Cookie $http_cookie;
@@ -155,6 +170,10 @@ data:
         # User info - get current user from session
         location = /auth/userinfo {
             auth_request /oauth2/auth;
+            
+            # Return 401 if not authenticated (important for frontend to detect auth state)
+            error_page 401 = @userinfo_unauthorized;
+            
             auth_request_set $auth_user $upstream_http_x_auth_request_user;
             auth_request_set $auth_email $upstream_http_x_auth_request_email;
             auth_request_set $auth_username $upstream_http_x_auth_request_preferred_username;
@@ -162,6 +181,12 @@ data:
             
             default_type application/json;
             return 200 '{"sub":"$auth_user","email":"$auth_email","username":"$auth_username","groups":"$auth_groups"}';
+        }
+        
+        # Handle unauthorized userinfo requests - return 401 JSON
+        location @userinfo_unauthorized {
+            default_type application/json;
+            return 401 '{"error":"unauthorized","message":"Not authenticated"}';
         }
         
         # CSRF token endpoint - returns token for double-submit pattern
@@ -214,9 +239,9 @@ data:
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Proto $forwarded_proto;
             proxy_set_header X-Forwarded-Host $host;
-            proxy_set_header X-Forwarded-Port $server_port;
+            proxy_set_header X-Forwarded-Port $forwarded_port;
             
             # BFF Identity Headers (from oauth2-proxy)
             # These are what the backend's bff_auth.py reads
@@ -264,7 +289,7 @@ data:
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Proto $forwarded_proto;
             
             # WebSocket support for HMR (development mode)
             proxy_set_header Upgrade $http_upgrade;
