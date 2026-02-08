@@ -215,6 +215,8 @@ spec:
               value: "{{ .Values.migration.flaskApp | default "app:create_app" }}"
             - name: PYTHONPATH
               value: "/app"
+            - name: INSTANCE_PATH
+              value: "/app/instance"
             
             {{- with .Values.migration.extraEnv }}
             {{- toYaml . | nindent 12 }}
