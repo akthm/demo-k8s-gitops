@@ -151,6 +151,7 @@ spec:
         - name: migration
           image: "docker.io/{{ .Values.migration.image.repository | default .Values.image.repository }}:{{ .Values.migration.image.tag | default .Values.image.tag }}"
           imagePullPolicy: {{ .Values.migration.image.pullPolicy | default .Values.image.pullPolicy }}
+          workingDir: /app
           command:
             - sh
             - -c
@@ -212,6 +213,8 @@ spec:
               value: "{{ .Values.migration.dbMode | default "alembic" }}"
             - name: FLASK_APP
               value: "{{ .Values.migration.flaskApp | default "app:create_app" }}"
+            - name: PYTHONPATH
+              value: "/app"
             
             {{- with .Values.migration.extraEnv }}
             {{- toYaml . | nindent 12 }}
