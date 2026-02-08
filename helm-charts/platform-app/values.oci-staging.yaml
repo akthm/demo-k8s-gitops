@@ -261,6 +261,11 @@ backend:
       enabled: true
       tnsAlias: "stagingdb_high"
       refreshInterval: "24h"
+      passwordSecretName: "platform-backend-wallet-password"
+      # OCI Object Storage details for wallet download (synced from ExternalSecret)
+      namespace: "frf2cjmlfcvq"
+      bucketName: "adaas-staging"
+      objectName: "wallet.zip"
       mountPath: "/opt/oracle/wallet"
       # Connection pool settings for python-oracledb
       poolMin: 2
