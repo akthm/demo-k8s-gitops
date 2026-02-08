@@ -11,6 +11,7 @@ secretNames:
   flaskSecret: "" # External Secrets - Flask SECRET_KEY, etc
   adminCredentials: "" # External Secrets - Initial admin user
 image:
+  registry: docker.io
   repository: "akthm/demo-back"
   pullPolicy: IfNotPresent
   tag: "1.2.1" # ArgoCD will override this with your git commit SHA
@@ -162,12 +163,58 @@ database:
     refreshInterval: "24h"
     # OCI Object Storage bucket info secret (created by external-secret-wallet.yaml)
     bucketInfoSecretName: ""
+    # Wallet password secret name (created by external-secret-wallet.yaml)
+    passwordSecretName: ""
+    # OCI Object Storage details for wallet download
+    namespace: ""
+    bucketName: ""
+    objectName: ""
     # Mount path for wallet files inside the container
     mountPath: "/opt/oracle/wallet"
     # Oracle connection pool settings (optional)
     poolMin: 2
     poolMax: 10
     poolIncrement: 1
+# ==============================================================================
+# Database Migration Configuration (Flask-Migrate/Alembic)
+# ==============================================================================
+# Runs as an ArgoCD PreSync hook to apply database schema changes before deployment
+# Supports both Oracle ATP and MySQL databases with automatic dialect detection
+# ==============================================================================
+migration:
+  # Enable database migrations (runs as Kubernetes Job before deployment)
+  enabled: false
+  # Migration mode: "upgrade" (default), "downgrade", "init" (first-time setup)
+  mode: "upgrade"
+  # For downgrade mode: target revision (default: -1 for one step back)
+  revision: "-1"
+  # Version tag for Job uniqueness (increment to re-run migration)
+  version: "v1"
+  # Backend migration mode: "alembic" (Flask-Migrate), "auto" (db.create_all), "manual"
+  dbMode: "alembic"
+  # Flask app factory path (for flask db commands)
+  flaskApp: "src.app:create_app"
+  # Job configuration
+  backoffLimit: 3 # Retry failed migrations up to 3 times
+  ttlSecondsAfterFinished: 300 # Clean up Job pods after 5 minutes
+  # Image configuration (defaults to main app image)
+  image:
+    repository: "" # Defaults to .Values.image.repository
+    tag: "" # Defaults to .Values.image.tag
+    pullPolicy: "" # Defaults to .Values.image.pullPolicy
+  # Resource limits for migration Job
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # Extra environment variables for migration
+  extraEnv: []
+  # Example:
+  # - name: MIGRATION_TIMEOUT
+  #   value: "300"
 # --- NEW SECTION: Non-sensitive configuration ---
 # These values will be loaded into a ConfigMap
 config:

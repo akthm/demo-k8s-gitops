@@ -1,0 +1,219 @@
+{{- if .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "flask-app.fullname" . }}-migration-{{ .Values.migration.version | default "v1" }}
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit | default 3 }}
+  ttlSecondsAfterFinished: {{ .Values.migration.ttlSecondsAfterFinished | default 300 }}
+  template:
+    metadata:
+      labels:
+        {{- include "flask-app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "flask-app.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: Never
+      {{- if .Values.database.wallet.enabled }}
+      # Wallet Download and Extraction InitContainers (same as deployment)
+      initContainers:
+        # Download wallet from OCI Object Storage using instance principal
+        - name: download-wallet
+          image: ghcr.io/oracle/oci-cli:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Downloading wallet from OCI Object Storage..."
+              oci os object get \
+                --namespace {{ .Values.database.wallet.namespace }} \
+                --bucket-name {{ .Values.database.wallet.bucketName }} \
+                --name {{ .Values.database.wallet.objectName }} \
+                --file /wallet-download/wallet.zip \
+                --auth instance_principal
+              echo "Wallet downloaded successfully"
+              ls -lh /wallet-download/
+          volumeMounts:
+            - name: wallet-download
+              mountPath: /wallet-download
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+        # Extract wallet and decrypt ewallet.pem with password
+        - name: extract-wallet
+          image: alpine:3.19
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              apk add --no-cache unzip openssl
+              
+              echo "Extracting wallet files..."
+              unzip -q /wallet-download/wallet.zip -d /wallet
+              
+              echo "Decrypting ewallet.pem with password..."
+              WALLET_PASSWORD=$(cat /wallet-password/WALLET_PASSWORD)
+              
+              # Decrypt the private key portion
+              openssl pkcs8 -inform PEM -in /wallet/ewallet.pem -passin pass:"${WALLET_PASSWORD}" -out /wallet/ewallet_decrypted_key.pem
+              
+              # Extract certificates (not encrypted)
+              grep -A 100 "BEGIN CERTIFICATE" /wallet/ewallet.pem > /wallet/ewallet_certs.pem || true
+              
+              # Combine decrypted key and certificates
+              cat /wallet/ewallet_decrypted_key.pem /wallet/ewallet_certs.pem > /wallet/ewallet_combined.pem
+              
+              # Replace original with combined version
+              mv /wallet/ewallet_combined.pem /wallet/ewallet.pem
+              
+              # Clean up temporary files
+              rm -f /wallet/ewallet_decrypted_key.pem /wallet/ewallet_certs.pem
+              
+              echo "Setting file permissions..."
+              chmod 640 /wallet/*
+              chmod g+r /wallet/*
+              
+              echo "Wallet extraction complete"
+              ls -lh /wallet/
+              wc -c /wallet/ewallet.pem
+          volumeMounts:
+            - name: wallet-download
+              mountPath: /wallet-download
+            - name: wallet
+              mountPath: /wallet
+            - name: wallet-password
+              mountPath: /wallet-password
+              readOnly: true
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- end }}
+      
+      containers:
+        - name: migration
+          image: "{{ .Values.migration.image.repository | default .Values.image.repository }}:{{ .Values.migration.image.tag | default .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.migration.image.pullPolicy | default .Values.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Starting database migration..."
+              echo "Migration mode: {{ .Values.migration.mode | default "upgrade" }}"
+              
+              {{- if eq (.Values.migration.mode | default "upgrade") "init" }}
+              echo "Initializing Alembic migrations..."
+              flask db init
+              flask db migrate -m "Initial schema"
+              flask db upgrade
+              {{- else if eq (.Values.migration.mode | default "upgrade") "upgrade" }}
+              echo "Running database upgrade..."
+              flask db upgrade
+              {{- else if eq (.Values.migration.mode | default "upgrade") "downgrade" }}
+              echo "Running database downgrade to: {{ .Values.migration.revision | default "-1" }}"
+              flask db downgrade {{ .Values.migration.revision | default "-1" }}
+              {{- else }}
+              echo "Unknown migration mode: {{ .Values.migration.mode }}"
+              exit 1
+              {{- end }}
+              
+              echo "Migration completed successfully"
+          env:
+            # Database credentials from ExternalSecret
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretNames.databaseCredentials }}
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretNames.databaseCredentials }}
+                  key: password
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretNames.databaseCredentials }}
+                  key: dsn
+            
+            {{- if .Values.database.wallet.enabled }}
+            # Oracle wallet configuration
+            - name: ORACLE_WALLET_LOCATION
+              value: /wallet
+            - name: ORACLE_WALLET_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.wallet.passwordSecretName }}
+                  key: WALLET_PASSWORD
+            {{- end }}
+            
+            # Migration configuration
+            - name: DB_MIGRATION_MODE
+              value: "{{ .Values.migration.dbMode | default "alembic" }}"
+            - name: FLASK_APP
+              value: "{{ .Values.migration.flaskApp | default "src.app:create_app" }}"
+            
+            {{- with .Values.migration.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          
+          {{- if .Values.database.wallet.enabled }}
+          volumeMounts:
+            - name: wallet
+              mountPath: /wallet
+              readOnly: true
+          {{- end }}
+          
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          
+          resources:
+            {{- toYaml .Values.migration.resources | nindent 12 }}
+      
+      {{- if .Values.database.wallet.enabled }}
+      volumes:
+        - name: wallet-download
+          emptyDir: {}
+        - name: wallet
+          emptyDir: {}
+        - name: wallet-password
+          secret:
+            secretName: {{ .Values.database.wallet.passwordSecretName }}
+            defaultMode: 0440
+      {{- end }}
+      
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
