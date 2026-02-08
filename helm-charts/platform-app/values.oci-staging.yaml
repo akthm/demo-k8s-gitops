@@ -242,7 +242,7 @@ backend:
     mode: "upgrade"  # Options: upgrade, downgrade, init
     version: "v1"  # Increment to re-run migration
     dbMode: "auto"  # Use db.create_all() until Flask-Migrate is implemented
-    flaskApp: "src.app:create_app"
+    flaskApp: "app:create_app"
     backoffLimit: 3
     ttlSecondsAfterFinished: 300
     resources:
