@@ -28,7 +28,7 @@ global:
   keycloak:
     # UPDATE: Set your actual domain
     url: "https://keycloak.adaas-il.com"
-    realm: "platform"
+    realm: "master"
     adminUrl: "https://keycloak.adaas-il.com"
   
   # BFF Pattern Configuration
