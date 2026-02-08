@@ -172,6 +172,7 @@ oauth2Proxy:
     # Cookie settings (use global.bff.cookie values)
     cookieRefresh: "1h"
     cookieExpire: "168h"  # 7 days
+    cookieDomain: ""  # Empty = auto-detect from request host. Set to ".yourdomain.com" for cross-subdomain cookies
     
     # Skip auth for these paths
     skipAuthPaths:

@@ -46,9 +46,10 @@ data:
     cookie_samesite = "{{ .Values.global.bff.cookie.sameSite }}"
     cookie_expire = "{{ .Values.oauth2Proxy.config.cookieExpire }}"
     cookie_refresh = "{{ .Values.oauth2Proxy.config.cookieRefresh }}"
-    {{- if .Values.global.tls.enabled }}
-    cookie_domains = ".{{ .Values.global.domain }}"
+    {{- if and .Values.global.tls.enabled .Values.oauth2Proxy.config.cookieDomain }}
+    cookie_domains = "{{ .Values.oauth2Proxy.config.cookieDomain }}"
     {{- end }}
+    {{- /* NOTE: If cookieDomain is empty/unset, oauth2-proxy auto-detects from request host */}}
 
     # Session Store (Redis)
     # session_store_type - set via env (redis)
