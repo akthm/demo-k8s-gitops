@@ -99,76 +99,73 @@ spec:
         
         # Extract wallet.zip to /wallet directory and decrypt PEM for thin mode
         - name: extract-wallet
-          image: alpine:3.19
+          image: busybox:1.36
           command:
             - sh
             - -c
             - |
               set -e
-              echo "Installing required tools..."
-              apk add --no-cache unzip openssl > /dev/null 2>&1
-              
-              echo "Extracting ATP wallet..."
-              mkdir -p /wallet
-              unzip -o /wallet-download/wallet.zip -d /wallet
-              
-              # Update sqlnet.ora with absolute wallet path
-              sed -i 's|DIRECTORY="?/network/admin"|DIRECTORY="{{ .Values.database.wallet.mountPath | default "/opt/oracle/wallet" }}"|g' /wallet/sqlnet.ora
-              
-              # Decrypt the PEM file for python-oracledb thin mode
-              # The ewallet.pem is encrypted and requires wallet password
-              if [ -f /wallet-password/WALLET_PASSWORD ] && [ -f /wallet/ewallet.pem ]; then
-                echo "Decrypting ewallet.pem for thin mode..."
-                WALLET_PW=$(cat /wallet-password/WALLET_PASSWORD)
-                
-                # Backup original PEM
-                cp /wallet/ewallet.pem /wallet/ewallet.pem.orig
-                
-                # The ewallet.pem contains: encrypted private key + certificate chain
-                # We need to decrypt the private key AND preserve the certificates
-                
-                # Extract and decrypt only the private key
-                openssl pkcs8 -in /wallet/ewallet.pem.orig -out /wallet/decrypted_key.pem -passin "pass:${WALLET_PW}" 2>/dev/null
-                
-                # Extract all certificates from the original PEM
-                openssl crl2pkcs7 -nocrl -certfile /wallet/ewallet.pem.orig 2>/dev/null | openssl pkcs7 -print_certs -out /wallet/certs.pem 2>/dev/null || \
-                  grep -A 1000 "BEGIN CERTIFICATE" /wallet/ewallet.pem.orig > /wallet/certs.pem 2>/dev/null || true
-                
-                if [ -f /wallet/decrypted_key.pem ] && [ -s /wallet/decrypted_key.pem ]; then
-                  # Combine decrypted key + certificates
-                  cat /wallet/decrypted_key.pem /wallet/certs.pem > /wallet/ewallet.pem 2>/dev/null || \
-                    mv /wallet/decrypted_key.pem /wallet/ewallet.pem
-                  # Make PEM readable by group (fsGroup=1000 handles ownership)
-                  chmod 640 /wallet/ewallet.pem
-                  rm -f /wallet/decrypted_key.pem /wallet/certs.pem /wallet/ewallet.pem.orig 2>/dev/null || true
-                  echo "PEM file decrypted successfully"
-                else
-                  # Restore original if decryption failed
-                  mv /wallet/ewallet.pem.orig /wallet/ewallet.pem
-                  echo "Warning: Failed to decrypt PEM, connection may prompt for password"
-                fi
-              else
-                echo "No wallet password provided or no PEM file found"
-              fi
-              
-              # Ensure all wallet files are readable by group (fsGroup handles ownership)
-              chmod -R g+r /wallet/
-              
-              echo "Wallet extracted and configured successfully"
-              cat /wallet/sqlnet.ora
-              ls -la /wallet/
+              echo "Extracting wallet files..."
+              unzip -q /wallet-download/wallet.zip -d /wallet
+              echo "Wallet extraction complete"
+              ls -lh /wallet/
           volumeMounts:
             - name: wallet-download
               mountPath: /wallet-download
               readOnly: true
             - name: wallet-dir
               mountPath: /wallet
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+        
+        # Decrypt ewallet.pem with OpenSSL
+        - name: decrypt-wallet
+          image: docker.io/alpine/openssl:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Decrypting ewallet.pem with password..."
+              WALLET_PASSWORD=$(cat /wallet-password/WALLET_PASSWORD)
+              
+              # Decrypt the private key portion
+              openssl pkcs8 -inform PEM -in /wallet/ewallet.pem -passin pass:"${WALLET_PASSWORD}" -out /wallet/ewallet_decrypted_key.pem
+              
+              # Extract certificates (not encrypted)
+              grep -A 100 "BEGIN CERTIFICATE" /wallet/ewallet.pem > /wallet/ewallet_certs.pem || true
+              
+              # Combine decrypted key and certificates
+              cat /wallet/ewallet_decrypted_key.pem /wallet/ewallet_certs.pem > /wallet/ewallet_combined.pem
+              
+              # Replace original with combined version
+              mv /wallet/ewallet_combined.pem /wallet/ewallet.pem
+              
+              # Clean up temporary files
+              rm -f /wallet/ewallet_decrypted_key.pem /wallet/ewallet_certs.pem
+              
+              echo "Setting file permissions..."
+              chmod 640 /wallet/*
+              chmod g+r /wallet/*
+              
+              echo "Wallet decryption complete"
+              wc -c /wallet/ewallet.pem
+          volumeMounts:
+            - name: wallet-dir
+              mountPath: /wallet
             - name: wallet-password
               mountPath: /wallet-password
               readOnly: true
           securityContext:
-            runAsNonRoot: false
-            runAsUser: 0
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
             allowPrivilegeEscalation: false
             capabilities:
               drop:
