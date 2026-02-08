@@ -393,10 +393,7 @@ ingress:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    # Security headers at ingress level
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      more_set_headers "X-Frame-Options: SAMEORIGIN";
-      more_set_headers "X-Content-Type-Options: nosniff";
+    # Note: configuration-snippet disabled by ingress admin - security headers set in nginx gateway
   
   # Single host pointing to nginx gateway
   hosts:

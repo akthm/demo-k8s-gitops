@@ -286,6 +286,12 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secretNames.databaseCredentials }}
                   key: DB_PASSWORD
+            # Wallet password for PEM decryption (python-oracledb thin mode)
+            - name: ORACLE_WALLET_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "flask-app.fullname" . }}-wallet-password
+                  key: WALLET_PASSWORD
             # Optional: Oracle connection pool settings
             {{- if .Values.database.wallet.poolMin }}
             - name: ORACLE_POOL_MIN
@@ -335,6 +341,11 @@ spec:
       - name: wallet-bucket-info
         secret:
           secretName: {{ include "flask-app.fullname" . }}-wallet-bucket-info
+          defaultMode: 0400
+      # Wallet password from ExternalSecret (for PEM decryption)
+      - name: wallet-password
+        secret:
+          secretName: {{ include "flask-app.fullname" . }}-wallet-password
           defaultMode: 0400
       # EmptyDir for downloaded wallet.zip
       - name: wallet-download
