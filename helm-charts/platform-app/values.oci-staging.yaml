@@ -37,7 +37,7 @@ global:
   bff:
     enabled: true
     # Cookie settings for production
-    cookieDomain: ".adaas-il.com"
+    cookieDomain: ""
     cookieSecure: true
     sessionTTL: "8h"
     cookie:
