@@ -127,9 +127,8 @@ spec:
                 if [ -f /wallet/ewallet_decrypted.pem ]; then
                   # Replace encrypted PEM with decrypted version
                   mv /wallet/ewallet_decrypted.pem /wallet/ewallet.pem
-                  # Make PEM readable by the app user (UID 1000)
+                  # Make PEM readable by group (fsGroup=1000 handles ownership)
                   chmod 640 /wallet/ewallet.pem
-                  chown 1000:1000 /wallet/ewallet.pem
                   echo "PEM file decrypted successfully"
                 else
                   echo "Warning: Failed to decrypt PEM, connection may prompt for password"
@@ -138,9 +137,8 @@ spec:
                 echo "No wallet password provided or no PEM file found"
               fi
               
-              # Ensure all wallet files are readable by app user
-              chmod 640 /wallet/*.pem /wallet/*.sso 2>/dev/null || true
-              chown -R 1000:1000 /wallet/
+              # Ensure all wallet files are readable by group (fsGroup handles ownership)
+              chmod -R g+r /wallet/
               
               echo "Wallet extracted and configured successfully"
               cat /wallet/sqlnet.ora
