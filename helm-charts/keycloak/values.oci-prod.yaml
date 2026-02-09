@@ -1,0 +1,241 @@
+# ==============================================================================
+# Keycloak SSO - OCI Production
+# ==============================================================================
+# TODO: Copy from values.oci-staging.yaml and adjust:
+#   - Domain: production domain
+#   - Replica count: 3+
+#   - Resource limits: production sizing
+#   - Database: production ATP instance
+#   - Vault secret names: production secret OCIDs
+# ==============================================================================
+
+keycloak:
+  production: true
+  replicaCount: 3
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  cache:
+    enabled: true
+
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: keycloak
+          app.kubernetes.io/instance: keycloak
+
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloak
+              app.kubernetes.io/instance: keycloak
+          topologyKey: kubernetes.io/hostname
+
+  auth:
+    adminUser: ""
+    existingSecret: keycloak-admin-credentials
+    passwordSecretKey: admin-password
+
+  extraEnvVars:
+    - name: KEYCLOAK_EXTRA_ARGS
+      value: "--features=token-exchange,admin-fine-grained-authz --spi-connections-jpa--quarkus--migration-strategy=Manual"
+    - name: KC_BOOTSTRAP_ADMIN_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-admin-credentials
+          key: admin-user
+    - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-admin-credentials
+          key: admin-password
+    - name: KC_DB
+      value: "oracle"
+    - name: KC_DB_SCHEMA
+      value: "KEYCLOAK"
+    - name: JAVA_OPTS_APPEND
+      value: "-Doracle.net.tns_admin=/opt/oracle/wallet"
+    - name: KC_DB_URL
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-postgres-credentials
+          key: jdbc-url
+    - name: KC_DB_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-postgres-credentials
+          key: username
+    - name: KC_DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-postgres-credentials
+          key: password
+    - name: TNS_ADMIN
+      value: "/opt/oracle/wallet"
+    - name: KC_SPI_CONNECTIONS_JPA_QUARKUS_MIGRATION_STRATEGY
+      value: "validate"
+
+  lifecycleHooks:
+    postStart:
+      exec:
+        command:
+          - /bin/bash
+          - -c
+          - |
+            cp -v /tmp/oracle-jars/*.jar /opt/bitnami/keycloak/providers/
+
+  initContainers:
+    - name: install-oracle-driver
+      image: docker.io/curlimages/curl:8.5.0
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          curl -L -o /providers/ojdbc11.jar https://repo1.maven.org/maven2/com/oracle/database/jdbc/ojdbc11/23.3.0.23.09/ojdbc11-23.3.0.23.09.jar
+          curl -L -o /providers/oraclepki.jar https://repo1.maven.org/maven2/com/oracle/database/security/oraclepki/21.9.0.0/oraclepki-21.9.0.0.jar
+          curl -L -o /providers/osdt_core.jar https://repo1.maven.org/maven2/com/oracle/database/security/osdt_core/21.9.0.0/osdt_core-21.9.0.0.jar
+          curl -L -o /providers/osdt_cert.jar https://repo1.maven.org/maven2/com/oracle/database/security/osdt_cert/21.9.0.0/osdt_cert-21.9.0.0.jar
+      volumeMounts:
+        - name: app-providers-dir
+          mountPath: /providers
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+
+    - name: download-wallet
+      image: ghcr.io/oracle/oci-cli:latest
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          export OCI_CLI_AUTH=instance_principal
+          BUCKET_NAME=$(cat /bucket-info/bucket_name)
+          NAMESPACE=$(cat /bucket-info/namespace)
+          OBJECT_NAME=$(cat /bucket-info/object_name)
+          REGION=$(cat /bucket-info/region)
+          oci os object get \
+            --namespace "$NAMESPACE" \
+            --bucket-name "$BUCKET_NAME" \
+            --name "$OBJECT_NAME" \
+            --file /wallet-download/wallet.zip \
+            --region "$REGION" \
+            --auth instance_principal
+      volumeMounts:
+        - name: wallet-bucket-info
+          mountPath: /bucket-info
+          readOnly: true
+        - name: wallet-download
+          mountPath: /wallet-download
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+
+    - name: extract-wallet
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          mkdir -p /wallet
+          unzip -o /wallet-download/wallet.zip -d /wallet
+          sed -i 's|DIRECTORY="?/network/admin"|DIRECTORY="/opt/oracle/wallet"|g' /wallet/sqlnet.ora
+      volumeMounts:
+        - name: wallet-download
+          mountPath: /wallet-download
+          readOnly: true
+        - name: wallet-dir
+          mountPath: /wallet
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+
+  extraVolumeMounts:
+    - name: app-providers-dir
+      mountPath: /tmp/oracle-jars
+      readOnly: true
+    - name: wallet-dir
+      mountPath: /opt/oracle/wallet
+      readOnly: true
+
+  extraVolumes:
+    - name: app-providers-dir
+      emptyDir: {}
+    - name: wallet-bucket-info
+      secret:
+        secretName: keycloak-wallet-bucket-info
+        defaultMode: 0400
+    - name: wallet-download
+      emptyDir: {}
+    - name: wallet-dir
+      emptyDir: {}
+
+  postgresql:
+    enabled: false
+
+  externalDatabase:
+    host: "adb.il-jerusalem-1.oraclecloud.com"
+    port: 1521
+    database: proddb_high  # TODO: Update with production TNS alias
+    existingSecret: "keycloak-postgres-credentials"
+    existingSecretPasswordKey: "password"
+    existingSecretUserKey: "username"
+
+  proxyHeaders: xforwarded
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hostname: keycloak.adaas-il.com  # TODO: Update for production domain
+    tls: true
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    extraTls:
+      - hosts:
+          - keycloak.adaas-il.com  # TODO: Update for production domain
+        secretName: keycloak-tls
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+
+externalSecrets:
+  enabled: true
+  refreshInterval: "15m"
+  secretStore:
+    name: oci-vault
+    kind: ClusterSecretStore
+  appSecretKey: "keycloak"  # TODO: Update with production vault secret name
+
+database:
+  wallet:
+    enabled: true
+    refreshInterval: "24h"
+    tnsAlias: "proddb_high"  # TODO: Update with production TNS alias

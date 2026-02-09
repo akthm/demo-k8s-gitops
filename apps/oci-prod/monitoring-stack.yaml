@@ -1,13 +1,6 @@
+---
 # ==============================================================================
-# ArgoCD Application - Monitoring Stack (Production)
-# ==============================================================================
-# Production EKS configuration:
-#   - 30 day retention
-#   - 100Gi storage
-#   - Production-grade resources
-#   - Alertmanager configured
-#
-# Sync Wave: -2 (deploys before flask-backend at wave 0)
+# Monitoring Stack - OCI Production
 # ==============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -15,41 +8,27 @@ metadata:
   name: monitoring-stack
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-2"
+    argocd.argoproj.io/sync-wave: "1"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  
   source:
     repoURL: https://github.com/akthm/demo-k8s-gitops
     targetRevision: main
     path: helm-charts/monitoring-stack
     helm:
-      releaseName: monitoring-stack
       valueFiles:
         - values.yaml
-        - values.prod.yaml
-  
+        - values.oci-prod.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
-  
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
-  
-  ignoreDifferences:
-    - group: argoproj.io
-      kind: Application
-      jsonPointers:
-        - /spec/source/targetRevision
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true

@@ -102,7 +102,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(flask_http_request_total{namespace=\"backend\"}[5m])) by (method, status)",
+          "expr": "sum(rate(flask_http_request_total{namespace=\"platform\"}[5m])) by (method, status)",
           "legendFormat": "{{method}} - {{status}}",
           "refId": "A"
         }
@@ -169,7 +169,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(sum(rate(flask_http_request_total{namespace=\"backend\", status=~\"5..\"}[5m])) / sum(rate(flask_http_request_total{namespace=\"backend\"}[5m]))) * 100",
+          "expr": "(sum(rate(flask_http_request_total{namespace=\"platform\", status=~\"5..\"}[5m])) / sum(rate(flask_http_request_total{namespace=\"platform\"}[5m]))) * 100",
           "refId": "A"
         }
       ],
@@ -265,7 +265,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"backend\"}[5m])) by (le, method))",
+          "expr": "histogram_quantile(0.95, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"platform\"}[5m])) by (le, method))",
           "legendFormat": "P95 - {{method}}",
           "refId": "A"
         },
@@ -274,7 +274,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.99, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"backend\"}[5m])) by (le, method))",
+          "expr": "histogram_quantile(0.99, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"platform\"}[5m])) by (le, method))",
           "legendFormat": "P99 - {{method}}",
           "refId": "B"
         },
@@ -283,7 +283,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"backend\"}[5m])) by (le, method))",
+          "expr": "histogram_quantile(0.50, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"platform\"}[5m])) by (le, method))",
           "legendFormat": "P50 - {{method}}",
           "refId": "C"
         }
@@ -415,7 +415,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "topk(10, sum(rate(flask_http_request_total{namespace=\"backend\"}[5m])) by (path))",
+          "expr": "topk(10, sum(rate(flask_http_request_total{namespace=\"platform\"}[5m])) by (path))",
           "format": "table",
           "instant": true,
           "legendFormat": "{{path}}",
@@ -426,7 +426,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(sum(rate(flask_http_request_total{namespace=\"backend\", status=~\"5..\"}[5m])) by (path) / sum(rate(flask_http_request_total{namespace=\"backend\"}[5m])) by (path)) * 100",
+          "expr": "(sum(rate(flask_http_request_total{namespace=\"platform\", status=~\"5..\"}[5m])) by (path) / sum(rate(flask_http_request_total{namespace=\"platform\"}[5m])) by (path)) * 100",
           "format": "table",
           "instant": true,
           "refId": "B"
@@ -515,7 +515,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(flask_http_request_total{namespace=\"backend\"}[1h])) by (status)",
+          "expr": "sum(increase(flask_http_request_total{namespace=\"platform\"}[1h])) by (status)",
           "legendFormat": "{{status}}",
           "refId": "A"
         }
@@ -575,7 +575,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(flask_http_request_total{namespace=\"backend\"}[1h]))",
+          "expr": "sum(increase(flask_http_request_total{namespace=\"platform\"}[1h]))",
           "refId": "A"
         }
       ],
@@ -642,7 +642,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"backend\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"platform\"}[5m])) by (le))",
           "refId": "A"
         }
       ],
@@ -701,7 +701,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(flask_http_request_total{namespace=\"backend\", status=~\"5..\"}[1h]))",
+          "expr": "sum(increase(flask_http_request_total{namespace=\"platform\", status=~\"5..\"}[1h]))",
           "refId": "A"
         }
       ],
@@ -760,7 +760,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(flask_http_request_total{namespace=\"backend\", status=~\"4..\"}[1h]))",
+          "expr": "sum(increase(flask_http_request_total{namespace=\"platform\", status=~\"4..\"}[1h]))",
           "refId": "A"
         }
       ],

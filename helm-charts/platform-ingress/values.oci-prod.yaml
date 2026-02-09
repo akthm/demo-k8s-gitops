@@ -1,73 +1,101 @@
 # ==============================================================================
-# Platform Ingress - Production Environment (AWS EKS)
+# Platform Ingress - OCI Production
 # ==============================================================================
-# Production configuration:
-#   - Real domain via Route53
-#   - Let's Encrypt TLS certificates
-#   - nginx-ingress-controller creates AWS NLB
+# TODO: Update domain, edge proxy IP, and vault secrets for production.
 # ==============================================================================
 
-# Production domain - UPDATE THIS before deployment
-domain: platform.example.com
+domain: adaas-il.com  # TODO: Update for production domain
 
 tls:
   enabled: true
-  secretName: platform-prod-tls
+  secretName: platform-oci-prod-tls
 
-# Use Let's Encrypt for production certificates
 certManager:
   enabled: true
   selfSigned:
-    enabled: false  # Don't use self-signed in production
-  # Use Let's Encrypt ClusterIssuer
+    enabled: false
   clusterIssuer:
     enabled: true
     name: letsencrypt-prod
   caIssuer:
     enabled: false
 
-# Production ingress annotations
+controller:
+  service:
+    type: NodePort
+    nodePorts:
+      http: 30080
+      https: 30443
+  config:
+    use-forwarded-headers: "true"
+    compute-full-forwarded-for: "true"
+    use-proxy-protocol: "false"
+
 ingress:
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
     nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
-    # Rate limiting for production
     nginx.ingress.kubernetes.io/limit-rps: "100"
     nginx.ingress.kubernetes.io/limit-connections: "50"
 
-# Service configurations for production
 keycloak:
   enabled: true
-  path: /keycloak
+  path: /
   serviceName: keycloak
   serviceNamespace: keycloak
   servicePort: 80
+  subdomain: keycloak
 
 argocd:
   enabled: true
-  path: /argo
+  path: /
   serviceName: argocd-server
   serviceNamespace: argocd
   servicePort: 80
-  annotations: {}
+  subdomain: argocd
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "false"
 
 grafana:
   enabled: true
-  path: /grafana
+  path: /
   serviceName: prometheus-grafana
   serviceNamespace: monitoring
   servicePort: 80
+  subdomain: grafana
 
 prometheus:
   enabled: true
-  path: /prometheus
+  path: /
   serviceName: prometheus-kube-prometheus-prometheus
   serviceNamespace: monitoring
   servicePort: 9090
+  subdomain: prometheus
   basicAuth:
     enabled: true
     secretName: prometheus-basic-auth
     username: admin
-    password: ""  # Use external secret in production
+    password: ""
+
+externalSecrets:
+  enabled: true
+  apiVersion: "v1beta1"
+  secretStore:
+    name: oci-vault
+    kind: ClusterSecretStore
+  appSecretKey: "cloudflare"
+
+letsEncrypt:
+  enabled: true
+  email: akthm.daas@gmail.com  # TODO: Update for production email
+  server: https://acme-v02.api.letsencrypt.org/directory
+  cloudflare:
+    enabled: true
+    secretKey: "cloudflare"
+    zoneIdEnabled: true
+    apiTokenSecretRef:
+      name: cloudflare-api-token
+      key: api-key
