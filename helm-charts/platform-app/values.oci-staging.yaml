@@ -463,7 +463,7 @@ frontend:
   image:
     # Full registry path for OCI
     repository: "docker.io/akthm/demo-front"
-    tag: "2.0.2"
+    tag: "2.0.3"
     pullPolicy: IfNotPresent
   
   service:
