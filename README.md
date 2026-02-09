@@ -11,13 +11,12 @@ GitOps repository for the platform stack deployed on **OCI (Oracle Cloud Infrast
                        └────────┬─────────┘
                                 │
                        ┌────────▼─────────┐
-                       │  Edge Proxy VM   │
-                       │  NGINX reverse   │
+                       │     NLB          │
                        │  proxy → OKE     │
                        └────────┬─────────┘
                                 │ NodePort 30080/30443
                 ┌───────────────▼───────────────┐
-                │        OKE Cluster            │
+                │        OKE Cluster (private)  │
                 │  ┌──────────────────────────┐ │
                 │  │   nginx-ingress-ctrl     │ │
                 │  └──────┬───────────────────┘ │

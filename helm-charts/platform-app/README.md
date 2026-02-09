@@ -5,6 +5,9 @@
 # oauth2-proxy BFF authentication with Redis session storage for Keycloak SSO.
 # ==============================================================================
 
+## IMPORTANT
+ - When changing any of the subcharts ( flask-app, nginx-front) UPDATE the chart using :
+   `helm dependency update` in the `platform-app` directory before pushing changes.
 ## Overview
 
 This Helm chart deploys a complete platform application stack with:

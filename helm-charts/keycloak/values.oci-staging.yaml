@@ -281,7 +281,7 @@ keycloak:
   # Ingress Configuration
   # ------------------------------------------------------------------------------
   ingress:
-    enabled: true
+    enabled: false  # SETUP via platform-ingress for unified domain and TLS management
     ingressClassName: nginx
     # UPDATE: Set your actual domain
     hostname: keycloak.adaas-il.com

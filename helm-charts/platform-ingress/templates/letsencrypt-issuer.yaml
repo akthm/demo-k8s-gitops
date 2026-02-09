@@ -61,29 +61,29 @@ spec:
 # Use this issuer for testing to avoid Let's Encrypt rate limits
 # Certificates will show as untrusted but validate the flow works
 # ==============================================================================
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-staging
-  annotations:
-    argocd.argoproj.io/sync-wave: "-1"
-spec:
-  acme:
-    # Let's Encrypt staging server (higher rate limits, untrusted certs)
-    server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: {{ .Values.letsEncrypt.email | required "letsEncrypt.email is required" }}
-    privateKeySecretRef:
-      name: letsencrypt-staging-account-key
-    solvers:
-    {{- if .Values.letsEncrypt.cloudflare.enabled }}
-    - dns01:
-        cloudflare:
-          apiTokenSecretRef:
-            name: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token" }}
-            key: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.key | default "api-token" }}
-    {{- else }}
-    - http01:
-        ingress:
-          class: {{ .Values.ingress.className | default "nginx" }}
-    {{- end }}
-{{- end }}
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-staging
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "-1"
+# spec:
+#   acme:
+#     # Let's Encrypt staging server (higher rate limits, untrusted certs)
+#     server: https://acme-staging-v02.api.letsencrypt.org/directory
+#     email: {{ .Values.letsEncrypt.email | required "letsEncrypt.email is required" }}
+#     privateKeySecretRef:
+#       name: letsencrypt-staging-account-key
+#     solvers:
+#     {{- if .Values.letsEncrypt.cloudflare.enabled }}
+#     - dns01:
+#         cloudflare:
+#           apiTokenSecretRef:
+#             name: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token" }}
+#             key: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.key | default "api-token" }}
+#     {{- else }}
+#     - http01:
+#         ingress:
+#           class: {{ .Values.ingress.className | default "nginx" }}
+#     {{- end }}
+# {{- end }}
