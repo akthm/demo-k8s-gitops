@@ -24,7 +24,11 @@ metadata:
     # Auth annotations - use oauth2-proxy for authentication
     nginx.ingress.kubernetes.io/auth-url: "http://{{ include "platform-app.fullname" . }}-oauth2-proxy.{{ .Release.Namespace }}.svc.cluster.local:4180/oauth2/auth"
     nginx.ingress.kubernetes.io/auth-signin: "https://{{ .Values.global.domain }}/oauth2/start?rd=$escaped_request_uri"
+    {{- if .Values.ingress.apiAuthResponseHeaders }}
+    nginx.ingress.kubernetes.io/auth-response-headers: {{ join "," .Values.ingress.apiAuthResponseHeaders | quote }}
+    {{- else }}
     nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Preferred-Username,X-Auth-Request-Groups,X-Auth-Request-Access-Token"
+    {{- end }}
     # Rate limiting for API
     nginx.ingress.kubernetes.io/limit-rps: "{{ .Values.ingress.apiRateLimit | default 10 }}"
     nginx.ingress.kubernetes.io/limit-connections: "50"

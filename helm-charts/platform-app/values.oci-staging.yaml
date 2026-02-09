@@ -94,6 +94,7 @@ oauth2Proxy:
     cookieName: "_oauth2_proxy"
     cookieSecure: true
     cookieDomain: ""  # Let it auto-detect from the request domain
+    cookiePath: "/"  # Ensures cookie sent to all paths (/, /api/*, /auth/*)
     cookieSameSite: "lax"  # MUST be lowercase: lax, strict, or none
     cookieExpire: "8h"
     cookieRefresh: "30m"
@@ -514,6 +515,13 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-set-headers: "platform/platform-ingress-headers"
   # API rate limit (applies to /api/* ingress)
   apiRateLimit: 50
+  # Auth response headers passed from oauth2-proxy to backend
+  apiAuthResponseHeaders:
+    - X-Auth-Request-User
+    - X-Auth-Request-Email
+    - X-Auth-Request-Preferred-Username
+    - X-Auth-Request-Groups
+    - X-Auth-Request-Access-Token
   # UPDATE: Set your actual domain
   hosts:
     - host: "app.adaas-il.com"

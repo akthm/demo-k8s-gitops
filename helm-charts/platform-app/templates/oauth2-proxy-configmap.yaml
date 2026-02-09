@@ -44,6 +44,9 @@ data:
     cookie_secure = {{ .Values.global.bff.cookie.secure }}
     cookie_httponly = {{ .Values.global.bff.cookie.httpOnly }}
     cookie_samesite = "{{ .Values.global.bff.cookie.sameSite }}"
+    {{- if .Values.oauth2Proxy.config.cookiePath }}
+    cookie_path = "{{ .Values.oauth2Proxy.config.cookiePath }}"
+    {{- end }}
     cookie_expire = "{{ .Values.oauth2Proxy.config.cookieExpire }}"
     cookie_refresh = "{{ .Values.oauth2Proxy.config.cookieRefresh }}"
     {{- if and .Values.global.tls.enabled .Values.oauth2Proxy.config.cookieDomain }}
