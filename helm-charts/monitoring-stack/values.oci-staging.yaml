@@ -74,8 +74,12 @@ kubePrometheusStack:
         labelValue: "1"
         searchNamespace: ALL
     
+    # Load secrets from Kubernetes Secret (populated by ExternalSecret)
+    envFromSecrets:
+      - name: grafana-oauth-secret
+    
     # Grafana server configuration
-    grafana.ini:
+    "grafana.ini":
       server:
         domain: grafana.adaas-il.com
         root_url: "https://grafana.adaas-il.com"
@@ -84,13 +88,13 @@ kubePrometheusStack:
       auth:
         disable_login_form: false  # Keep admin login available
       
-      auth.generic_oauth:
+      "auth.generic_oauth":
         enabled: true
         name: Keycloak
         allow_sign_up: true  # Auto-provision users on first login
         auto_login: false  # Show login page with SSO button
         client_id: grafana
-        scopes: openid profile email groups
+        scopes: "openid profile email groups"
         
         # Keycloak OIDC endpoints
         auth_url: https://keycloak.adaas-il.com/realms/master/protocol/openid-connect/auth
@@ -106,9 +110,6 @@ kubePrometheusStack:
         # Security
         use_pkce: true
         empty_scopes: false
-    
-    # Load client secret from environment
-    envFromSecret: grafana-oauth-secret
     
     datasources:
       loki:
