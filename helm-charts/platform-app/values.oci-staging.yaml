@@ -510,11 +510,10 @@ ingress:
     nginx.ingress.kubernetes.io/limit-rps: "100"
     nginx.ingress.kubernetes.io/limit-connections: "50"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    # OAuth2-proxy specific annotations
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header X-Forwarded-Host $host;
-      proxy_set_header X-Forwarded-Port $server_port;
+    # Note: configuration-snippet disabled by ingress admin, use standard annotations
+    nginx.ingress.kubernetes.io/proxy-set-headers: "platform/platform-ingress-headers"
+  # API rate limit (applies to /api/* ingress)
+  apiRateLimit: 50
   # UPDATE: Set your actual domain
   hosts:
     - host: "app.adaas-il.com"
