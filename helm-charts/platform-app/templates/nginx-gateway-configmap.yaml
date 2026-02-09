@@ -168,28 +168,23 @@ data:
         }
         
         # User info - get current user from session
-        # This endpoint checks authentication and returns user info as JSON
+        # Proxies to oauth2-proxy's /oauth2/userinfo endpoint which returns user claims
         # Returns 401 if not authenticated, 200 with user data if authenticated
         location = /auth/userinfo {
-            # First, check authentication with oauth2-proxy
-            auth_request /oauth2/auth;
+            proxy_pass http://oauth2_proxy/oauth2/userinfo;
+            proxy_http_version 1.1;
             
-            auth_request_set $auth_user $upstream_http_x_auth_request_user;
-            auth_request_set $auth_email $upstream_http_x_auth_request_email;
-            auth_request_set $auth_username $upstream_http_x_auth_request_preferred_username;
-            auth_request_set $auth_groups $upstream_http_x_auth_request_groups;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $forwarded_proto;
+            proxy_set_header X-Forwarded-Host $host;
             
-            # Check if user is authenticated (sub/user claim is set)
-            # If not authenticated, return 401
-            if ($auth_user = "") {
-                add_header Content-Type "application/json" always;
-                add_header Cache-Control "no-store, no-cache, must-revalidate" always;
-                return 401 '{"error":"unauthorized","message":"Not authenticated"}';
-            }
+            # Pass cookies for session handling
+            proxy_set_header Cookie $http_cookie;
             
-            default_type application/json;
+            # Disable caching
             add_header Cache-Control "no-store, no-cache, must-revalidate" always;
-            return 200 '{"sub":"$auth_user","email":"$auth_email","username":"$auth_username","groups":"$auth_groups"}';
         }
         
         # CSRF token endpoint - returns token for double-submit pattern
@@ -276,6 +271,36 @@ data:
             # Error handling
             proxy_intercept_errors on;
             error_page 502 503 504 /50x.html;
+        }
+
+        # ==========================================================================
+        # Frontend Static Assets (No auth required for CSS, JS, images)
+        # ==========================================================================
+        location /assets/ {
+            proxy_pass http://frontend_app/assets/;
+            proxy_http_version 1.1;
+            
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $forwarded_proto;
+            
+            # Cache static assets
+            add_header Cache-Control "public, max-age=31536000, immutable";
+        }
+        
+        # Frontend config.json (No auth required)
+        location = /config.json {
+            proxy_pass http://frontend_app/config.json;
+            proxy_http_version 1.1;
+            
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $forwarded_proto;
+            
+            # Don't cache config
+            add_header Cache-Control "no-store, no-cache, must-revalidate" always;
         }
 
         # ==========================================================================
