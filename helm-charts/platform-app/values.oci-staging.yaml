@@ -148,10 +148,16 @@ oauth2Proxy:
           app.kubernetes.io/name: oauth2-proxy
 
 # ==============================================================================
-# Nginx Gateway (BFF Routing)
+# Nginx Gateway (BFF Routing) - DISABLED
+# ==============================================================================
+# Simplified architecture: Using ingress-level auth instead of nginx-gateway
+# The ingress controller handles:
+# - /api/* routes with oauth2-proxy auth annotations
+# - /oauth2/* routes directly to oauth2-proxy
+# - /* frontend routes without auth (SPA handles client-side)
 # ==============================================================================
 nginxGateway:
-  enabled: true
+  enabled: false  # Disabled - using ingress-level auth
   
   replicaCount: 2
   
@@ -333,8 +339,10 @@ backend:
     DB_ENCRYPTION_KEY_ROTATION_GRACE_PERIOD: "86400"
     DATABASE_ENCRYPTION_KEYS_DIR: "/run/secrets/db_encryption_keys"
     DB_ENCRYPTED_FIELDS: "email,phone,medical_notes,patient_name"
-    # BFF Mode
+    # BFF Mode - Simplified (no nginx-gateway, ingress-level auth)
     AUTH_MODE: "bff"
+    # X-Internal-Auth validation disabled - using NetworkPolicy for security
+    BFF_VALIDATE_INTERNAL_SECRET: "false"
     BFF_INTERNAL_SECRET_HEADER: "X-Internal-Auth"
     BFF_HEADER_SUB: "X-Auth-Request-User"
     BFF_HEADER_EMAIL: "X-Auth-Request-Email"

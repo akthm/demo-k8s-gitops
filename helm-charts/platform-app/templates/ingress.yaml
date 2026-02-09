@@ -1,14 +1,42 @@
 {{- if .Values.ingress.enabled }}
+# ==============================================================================
+# Platform App Ingress - Simplified BFF Architecture
+# ==============================================================================
+# Uses nginx-ingress auth annotations instead of nginx-gateway.
+# - /api/* routes to backend with authentication enforced at ingress level
+# - /oauth2/* routes to oauth2-proxy (no auth required - it handles auth)
+# - /* routes to frontend (no auth - frontend handles auth client-side)
+# ==============================================================================
+
+---
+# API Ingress - Protected by oauth2-proxy auth
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "platform-app.fullname" . }}
+  name: {{ include "platform-app.fullname" . }}-api
   labels:
     {{- include "platform-app.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+    app.kubernetes.io/component: api-ingress
   annotations:
+    {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
+    # Auth annotations - use oauth2-proxy for authentication
+    nginx.ingress.kubernetes.io/auth-url: "http://{{ include "platform-app.fullname" . }}-oauth2-proxy.{{ .Release.Namespace }}.svc.cluster.local:4180/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://{{ .Values.global.domain }}/oauth2/start?rd=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Preferred-Username,X-Auth-Request-Groups,X-Auth-Request-Access-Token"
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+    # Rate limiting for API
+    nginx.ingress.kubernetes.io/limit-rps: "{{ .Values.ingress.apiRateLimit | default 10 }}"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    # Proxy settings
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
 spec:
   {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}
@@ -24,22 +52,93 @@ spec:
     {{- end }}
   {{- end }}
   rules:
-    {{- if .Values.ingress.hosts }}
-    {{- range .Values.ingress.hosts }}
-    - host: {{ .host | default $.Values.global.domain | quote }}
+    - host: {{ .Values.global.domain | quote }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .pathType }}
+          - path: /api
+            pathType: Prefix
             backend:
               service:
-                name: {{ include "platform-app.fullname" $ }}-nginx-gateway
+                name: {{ .Release.Name }}-backend
                 port:
-                  number: {{ $.Values.nginxGateway.service.port }}
-          {{- end }}
+                  number: {{ .Values.backend.service.port }}
+
+---
+# OAuth2 Proxy Ingress - Handles auth flow (no auth_request on this path)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "platform-app.fullname" . }}-oauth2
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth2-ingress
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
     {{- end }}
+    # No auth-url here - oauth2-proxy handles its own auth
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if or .Values.ingress.tls .Values.global.tls.enabled }}
+  tls:
+    {{- if .Values.ingress.tls }}
+    {{- toYaml .Values.ingress.tls | nindent 4 }}
     {{- else }}
+    - secretName: {{ .Values.global.tls.secretName }}
+      hosts:
+        - {{ .Values.global.domain }}
+    {{- end }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.global.domain | quote }}
+      http:
+        paths:
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "platform-app.fullname" . }}-oauth2-proxy
+                port:
+                  number: 4180
+
+---
+# Frontend Ingress - No auth (SPA handles auth state client-side)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "platform-app.fullname" . }}-frontend
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend-ingress
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    # No auth-url here - frontend is public, handles auth client-side
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if or .Values.ingress.tls .Values.global.tls.enabled }}
+  tls:
+    {{- if .Values.ingress.tls }}
+    {{- toYaml .Values.ingress.tls | nindent 4 }}
+    {{- else }}
+    - secretName: {{ .Values.global.tls.secretName }}
+      hosts:
+        - {{ .Values.global.domain }}
+    {{- end }}
+  {{- end }}
+  rules:
     - host: {{ .Values.global.domain | quote }}
       http:
         paths:
@@ -47,8 +146,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "platform-app.fullname" . }}-nginx-gateway
+                name: {{ .Release.Name }}-frontend
                 port:
-                  number: {{ .Values.nginxGateway.service.port }}
-    {{- end }}
+                  number: {{ .Values.frontend.service.port }}
 {{- end }}
