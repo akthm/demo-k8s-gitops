@@ -99,6 +99,131 @@ spec:
                   number: 4180
 
 ---
+# BFF Auth Endpoints - Maps /auth/* to oauth2-proxy endpoints
+# This provides friendly URLs for the frontend SPA
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "platform-app.fullname" . }}-auth-login
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: auth-ingress
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    # Rewrite /auth/login to /oauth2/start
+    nginx.ingress.kubernetes.io/rewrite-target: /oauth2/start
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if or .Values.ingress.tls .Values.global.tls.enabled }}
+  tls:
+    {{- if .Values.ingress.tls }}
+    {{- toYaml .Values.ingress.tls | nindent 4 }}
+    {{- else }}
+    - secretName: {{ .Values.global.tls.secretName }}
+      hosts:
+        - {{ .Values.global.domain }}
+    {{- end }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.global.domain | quote }}
+      http:
+        paths:
+          - path: /auth/login
+            pathType: Exact
+            backend:
+              service:
+                name: {{ include "platform-app.fullname" . }}-oauth2-proxy
+                port:
+                  number: 4180
+
+---
+# /auth/logout -> /oauth2/sign_out
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "platform-app.fullname" . }}-auth-logout
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: auth-ingress
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/rewrite-target: /oauth2/sign_out
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if or .Values.ingress.tls .Values.global.tls.enabled }}
+  tls:
+    {{- if .Values.ingress.tls }}
+    {{- toYaml .Values.ingress.tls | nindent 4 }}
+    {{- else }}
+    - secretName: {{ .Values.global.tls.secretName }}
+      hosts:
+        - {{ .Values.global.domain }}
+    {{- end }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.global.domain | quote }}
+      http:
+        paths:
+          - path: /auth/logout
+            pathType: Exact
+            backend:
+              service:
+                name: {{ include "platform-app.fullname" . }}-oauth2-proxy
+                port:
+                  number: 4180
+
+---
+# /auth/userinfo -> /oauth2/userinfo
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "platform-app.fullname" . }}-auth-userinfo
+  labels:
+    {{- include "platform-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: auth-ingress
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/rewrite-target: /oauth2/userinfo
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if or .Values.ingress.tls .Values.global.tls.enabled }}
+  tls:
+    {{- if .Values.ingress.tls }}
+    {{- toYaml .Values.ingress.tls | nindent 4 }}
+    {{- else }}
+    - secretName: {{ .Values.global.tls.secretName }}
+      hosts:
+        - {{ .Values.global.domain }}
+    {{- end }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.global.domain | quote }}
+      http:
+        paths:
+          - path: /auth/userinfo
+            pathType: Exact
+            backend:
+              service:
+                name: {{ include "platform-app.fullname" . }}-oauth2-proxy
+                port:
+                  number: 4180
+
+---
 # Frontend Ingress - No auth (SPA handles auth state client-side)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
