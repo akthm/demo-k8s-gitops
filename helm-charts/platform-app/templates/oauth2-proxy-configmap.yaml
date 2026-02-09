@@ -63,6 +63,10 @@ data:
     # oauth2-proxy is only used for auth validation via auth_request
     upstreams = ["static://202"]
 
+    # Whitelist domains for logout redirect
+    # Allow redirecting to Keycloak for complete logout
+    whitelist_domains = ["{{ .Values.global.keycloak.domain | default "keycloak.adaas-il.com" }}"]
+
     # Authentication Behavior
     skip_auth_routes = [
       {{- range $i, $path := .Values.oauth2Proxy.config.skipAuthPaths }}
