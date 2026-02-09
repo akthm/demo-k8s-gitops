@@ -83,10 +83,10 @@ spec:
               labelValue: {{ .Values.kubePrometheusStack.grafana.sidecar.dashboards.labelValue | quote }}
               searchNamespace: {{ .Values.kubePrometheusStack.grafana.sidecar.dashboards.searchNamespace }}
           
-          {{- if .Values.kubePrometheusStack.grafana.env }}
+          {{- if .Values.kubePrometheusStack.grafana.envValueFrom }}
           # Environment variables from secrets
-          env:
-            {{- toYaml .Values.kubePrometheusStack.grafana.env | nindent 12 }}
+          envValueFrom:
+            {{- toYaml .Values.kubePrometheusStack.grafana.envValueFrom | nindent 12 }}
           {{- end }}
           
           {{- if index .Values.kubePrometheusStack.grafana "grafana.ini" }}
