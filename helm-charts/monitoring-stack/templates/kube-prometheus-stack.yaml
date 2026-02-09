@@ -86,10 +86,7 @@ spec:
           {{- if .Values.kubePrometheusStack.grafana.env }}
           # Environment variables from secrets
           env:
-            {{- range $key, $value := .Values.kubePrometheusStack.grafana.env }}
-            - name: {{ $key }}
-              {{- toYaml $value | nindent 14 }}
-            {{- end }}
+            {{- toYaml .Values.kubePrometheusStack.grafana.env | nindent 12 }}
           {{- end }}
           
           {{- if index .Values.kubePrometheusStack.grafana "grafana.ini" }}

@@ -76,7 +76,7 @@ kubePrometheusStack:
     
     # Load OAuth client secret from Kubernetes Secret (populated by ExternalSecret)
     env:
-      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+      - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
         valueFrom:
           secretKeyRef:
             name: grafana-oauth-secret
