@@ -31,3 +31,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - PrunePropagationPolicy=foreground
+      - SkipDryRunOnMissingResource=true
