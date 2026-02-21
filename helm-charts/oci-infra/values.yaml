@@ -1,0 +1,19 @@
+# ==============================================================================
+# OCI Infrastructure - Default Values
+# ==============================================================================
+
+storageClasses:
+  # OCI Block Volume StorageClass (paravirtualized attachment mode)
+  # Used for workloads that need block storage without in-transit encryption overhead
+  # Provisioner: blockvolume.csi.oraclecloud.com (built into OKE nodes)
+  ociBlockParavirtualized:
+    enabled: true
+    name: oci-bv-paravirtualized
+    isDefault: false
+    reclaimPolicy: Delete
+    volumeBindingMode: WaitForFirstConsumer
+    allowVolumeExpansion: true
+    # Optional: restrict to a specific AD (leave empty to use any AD)
+    availabilityDomain: ""
+    # Optional: tagging for OCI cost management
+    compartmentOcid: ""

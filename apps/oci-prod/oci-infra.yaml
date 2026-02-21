@@ -1,0 +1,46 @@
+---
+# ==============================================================================
+# OCI Infrastructure - Cluster Prerequisites (OCI Production)
+# ==============================================================================
+# Provisions base cluster resources that were previously managed by Terraform:
+#   - StorageClass: oci-bv-paravirtualized (OCI Block Volume CSI)
+#
+# Sync wave -4: Must run first — StorageClasses must exist before any
+# StatefulSets or PVCs are created by downstream apps.
+#
+# Sync wave order:
+#   -4: oci-infra    (StorageClasses)
+#   -3: reflector    (secret replication)
+#   -2: cert-manager (CRDs + controller)
+#    0: platform-ingress, monitoring-stack
+#    1: keycloak
+#    2: platform-app
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: oci-infra
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: main
+    path: helm-charts/oci-infra
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
