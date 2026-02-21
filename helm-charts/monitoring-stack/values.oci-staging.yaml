@@ -130,6 +130,7 @@ externalSecretsOperator:
 # ------------------------------------------------------------------------------
 externalSecrets:
   enabled: true
+  apiVersion: "v1" # Use v1 for ClusterSecretStore after latest update
   secretStore:
     name: oci-vault
     kind: ClusterSecretStore
