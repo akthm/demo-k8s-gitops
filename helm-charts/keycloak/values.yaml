@@ -118,6 +118,7 @@ keycloak:
 # ------------------------------------------------------------------------------
 externalSecrets:
   enabled: false
+  apiVersion: "v1beta1"
   refreshInterval: "5m"
   secretStore:
     name: aws-secrets-manager

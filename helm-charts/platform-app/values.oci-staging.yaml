@@ -50,6 +50,7 @@ global:
   # External Secrets Configuration - OCI Vault
   externalSecrets:
     enabled: true
+    apiVersion: "v1"
     secretStoreRef:
       name: "oci-vault"
       kind: "ClusterSecretStore"
@@ -293,6 +294,7 @@ backend:
   # ------------------------------------------------------------------------------
   externalSecrets:
     enabled: true
+    apiVersion: "v1"
     secretStoreRef:
       name: "oci-vault"
       kind: "ClusterSecretStore"

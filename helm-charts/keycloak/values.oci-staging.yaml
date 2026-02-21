@@ -312,10 +312,11 @@ keycloak:
 externalSecrets:
   enabled: true
   refreshInterval: "10m"
+  apiVersion: "v1"
   secretStore:
     name: oci-vault
     kind: ClusterSecretStore
-  # Consolidated OCI Vault secret name (matches Terraform application_secrets key)
+  # Consolidated OCI Vault secret name 
   appSecretKey: "keycloak"
 
 # ------------------------------------------------------------------------------

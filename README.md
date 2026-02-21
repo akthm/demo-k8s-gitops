@@ -24,7 +24,7 @@ GitOps repository for the platform stack deployed on **OCI (Oracle Cloud Infrast
                 │  ┌──────┼──────┬──────┐       │
                 │  │      │      │      │       │
                 │  ▼      ▼      ▼      ▼       │
-                │ App  Keycloak Grafana ArgoCD   │
+                │ App  Keycloak Grafana ArgoCD  │
                 └───────────────────────────────┘
                          │              │
               ┌──────────▼──┐   ┌───────▼────────┐
