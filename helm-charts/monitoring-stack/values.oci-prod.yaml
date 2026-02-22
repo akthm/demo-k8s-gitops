@@ -16,7 +16,7 @@ kubePrometheusStack:
     evaluationInterval: 30s
 
     storage:
-      enabled: true
+      enabled: false  # Disabled: eliminates 50GB OCI block volume; metrics lost on restart
       size: 50Gi
       storageClassName: oci-bv-paravirtualized
 
@@ -45,7 +45,7 @@ kubePrometheusStack:
     adminPassword: ""
 
     persistence:
-      enabled: true
+      enabled: false  # Disabled: eliminates 50GB OCI block volume; dashboards loaded from ConfigMaps
       size: 10Gi
       storageClassName: oci-bv-paravirtualized
 
