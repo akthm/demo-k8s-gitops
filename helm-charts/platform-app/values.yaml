@@ -123,6 +123,20 @@ global:
     # Base path in secrets manager
     basePath: "staging/platform"
 
+  # ============================================================================
+  # Docker Hub Pull Secret
+  # ============================================================================
+  # Creates a kubernetes.io/dockerconfigjson secret from OCI Vault credentials.
+  # Required when Docker Hub unauthenticated pull rate limit is hit.
+  # The OCI Vault secret must contain 'username' and 'password' keys.
+  dockerhub:
+    enabled: false
+    # Name of the Kubernetes Secret to create (referenced by imagePullSecrets)
+    secretName: "dockerhub-pull-secret"
+    externalSecret:
+      # Key name of the secret in OCI Vault
+      secretKey: "dockerhub-credentials"
+
 # ==============================================================================
 # OAuth2 Proxy Configuration
 # ==============================================================================
