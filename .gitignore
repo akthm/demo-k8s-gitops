@@ -2,3 +2,4 @@
 !/docs/*.md
 !README.md
 /ignore
+/.vscode
