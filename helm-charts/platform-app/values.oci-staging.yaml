@@ -239,7 +239,7 @@ backend:
   # Backend image configuration
   image:
     repository: "akthm/demo-back"
-    tag: "1.2.1"  # feat/oracle branch with wallet_password support
+    tag: "1.2.3"  # feat/oracle branch with wallet_password support
     pullPolicy: IfNotPresent
 
   service:
