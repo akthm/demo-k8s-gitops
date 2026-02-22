@@ -483,8 +483,8 @@ frontend:
   image:
     # Full registry path for OCI
     repository: "docker.io/akthm/demo-front"
-    tag: "sha-c53fd8bb20a54ecabcac9e24a33e130c1e7493b3"
-    pullPolicy: IfNotPresent
+    tag: "latest"
+    pullPolicy: Always
 
   imagePullSecrets:
     - name: "dockerhub-pull-secret"
