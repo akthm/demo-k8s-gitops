@@ -60,6 +60,14 @@ global:
       retryInterval: "15s"
       retryIntervalMax: "10m"
 
+  # Docker Hub pull secret (created via ExternalSecret from OCI Vault)
+  # OCI Vault secret 'dockerhub-credentials' must contain keys: username, password
+  dockerhub:
+    enabled: true
+    secretName: "dockerhub-pull-secret"
+    externalSecret:
+      secretKey: "dockerhub-credentials"
+
 # ==============================================================================
 # OAuth2 Proxy Configuration
 # ==============================================================================
@@ -166,7 +174,10 @@ nginxGateway:
   image:
     repository: docker.io/library/nginx
     tag: "1.27-alpine"
-  
+
+  imagePullSecrets:
+    - name: "dockerhub-pull-secret"
+
   service:
     type: ClusterIP
     port: 80
@@ -198,6 +209,10 @@ nginxGateway:
 redis:
   enabled: true
   architecture: standalone
+  # Bitnami charts read imagePullSecrets from global.imagePullSecrets (array of secret name strings)
+  global:
+    imagePullSecrets:
+      - "dockerhub-pull-secret"
   image:
     registry: docker.io
     repository: bitnamilegacy/redis
@@ -241,6 +256,9 @@ backend:
     repository: "akthm/demo-back"
     tag: "1.2.3"  # feat/oracle branch with wallet_password support
     pullPolicy: IfNotPresent
+
+  imagePullSecrets:
+    - name: "dockerhub-pull-secret"
 
   service:
     type: ClusterIP
@@ -467,7 +485,10 @@ frontend:
     repository: "docker.io/akthm/demo-front"
     tag: "2.0.4"
     pullPolicy: IfNotPresent
-  
+
+  imagePullSecrets:
+    - name: "dockerhub-pull-secret"
+
   service:
     type: ClusterIP
     port: 80

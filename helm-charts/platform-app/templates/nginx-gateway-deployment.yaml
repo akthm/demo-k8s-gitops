@@ -22,6 +22,10 @@ spec:
         app.kubernetes.io/component: nginx-gateway
     spec:
       serviceAccountName: {{ include "platform-app.serviceAccountName" . }}
+      {{- with .Values.nginxGateway.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 101
