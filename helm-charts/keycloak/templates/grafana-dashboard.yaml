@@ -1,0 +1,23 @@
+{{- if and .Values.keycloak.metrics.enabled .Values.keycloak.metrics.serviceMonitor.enabled }}
+---
+# ==============================================================================
+# Keycloak Grafana Dashboard ConfigMap
+# ==============================================================================
+# Loaded automatically by the Grafana sidecar (label: grafana_dashboard: "1").
+# Dashboard: Keycloak Metrics Dashboard (gnetId: 19659)
+# Covers: JVM memory, logins/registrations per realm & client, error rates,
+#         request duration heatmaps for GET/POST/HEAD/PUT methods.
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "keycloak.fullname" . }}-grafana-dashboard
+  namespace: {{ .Release.Namespace }}
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/component: monitoring
+    {{- include "keycloak.labels" . | nindent 4 }}
+data:
+  keycloak-dashboard.json: |-
+{{ .Files.Get "dashboards/keycloak-dashboard.json" | indent 4 }}
+{{- end }}

@@ -84,6 +84,11 @@ keycloak:
       value: "/opt/oracle/wallet"
     - name: KC_SPI_CONNECTIONS_JPA_QUARKUS_MIGRATION_STRATEGY
       value: "validate"
+    # Metrics endpoint — required explicitly for KC 25+; Bitnami array override loses defaults
+    - name: KC_METRICS_ENABLED
+      value: "true"
+    - name: KC_HTTP_MANAGEMENT_PORT
+      value: "9000"
 
   lifecycleHooks:
     postStart:

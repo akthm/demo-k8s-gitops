@@ -102,8 +102,13 @@ keycloak:
   # ------------------------------------------------------------------------------
   metrics:
     enabled: true
+    service:
+      ports:
+        http: 9000  # Keycloak 25+ management interface port
     serviceMonitor:
       enabled: true
+      port: http-management  # Named port on the metrics service
+      path: /metrics
       labels:
         release: prometheus
 
