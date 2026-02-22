@@ -39,16 +39,15 @@ argocd:
       # UPDATE: Set your actual domain
       url: https://argocd.adaas-il.com
       # OIDC configuration
+      # clientSecret references oidc.keycloak.clientSecret key inside argocd-secret
       oidc.config: |
         name: Keycloak
         issuer: https://keycloak.adaas-il.com/realms/master
         clientID: argocd
-        clientSecret: $argocd-oidc:client-secret
-        requestedScopes:
-          - openid
-          - profile
-          - email
-          - groups
+        clientSecret: $oidc.keycloak.clientSecret
+        enablePKCEAuthentication: true
+        refreshTokenThreshold: 2m
+        requestedScopes: ["openid", "profile", "email", "groups"]
     
     # RBAC policy for Keycloak groups
     rbacConfig:
