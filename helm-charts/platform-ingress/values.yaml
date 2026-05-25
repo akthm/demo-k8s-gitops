@@ -118,3 +118,22 @@ letsEncrypt:
     apiKeySecretRef:
       name: cloudflare-api-token
       key: api-key
+
+# ==============================================================================
+# Monitoring Configuration
+# ==============================================================================
+monitoring:
+  dashboard:
+    enabled: true
+    namespace: monitoring
+    label: grafana_dashboard
+    labelValue: "1"
+  prometheusRule:
+    enabled: false
+    namespace: monitoring
+    labels:
+      release: prometheus
+    certExpiryWarningDays: 14
+    certExpiryCriticalDays: 7
+    certNotReadyDuration: 15m
+    orderPendingDuration: 30m

@@ -100,3 +100,13 @@ letsEncrypt:
     apiTokenSecretRef:
       name: cloudflare-api-token
       key: api-token
+
+monitoring:
+  dashboard:
+    enabled: true
+    namespace: monitoring
+  prometheusRule:
+    enabled: true
+    namespace: monitoring
+    labels:
+      release: prometheus

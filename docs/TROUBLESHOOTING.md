@@ -251,6 +251,68 @@ kubectl get challenges --all-namespaces
 kubectl describe challenge <name> -n <namespace>
 ```
 
+### DNS01 challenge stuck / certificate not renewing (Cloudflare)
+
+**Symptom**:
+- `Certificate` stays `Ready=False` and may show expired.
+- `Order` remains `pending`.
+- cert-manager logs show Cloudflare errors like:
+  - `Invalid format for X-Auth-Key header`
+  - `Authentication error`
+  - `Could not route to /client/v4/zones/dns_records/...`
+
+**Meaning**:
+- `X-Auth-Key` errors indicate API-key flow is still active (or token wired as key).
+- `Authentication error` indicates token is invalid/revoked or scoped to wrong account/zone.
+- `zones//dns_records` indicates stale challenge cleanup with an empty zone id path.
+
+**Debug session (copy/paste)**:
+
+```bash
+# 1) Confirm issuer auth mode
+kubectl get clusterissuer letsencrypt-prod -o yaml | sed -n '/solvers:/,/status:/p'
+
+# 2) Verify cert + ACME resources
+kubectl get certificate -A -o wide
+kubectl get challenges,orders,certificaterequests -n ingress-nginx -o wide
+kubectl get challenge -n ingress-nginx -o yaml
+
+# 3) Check cert-manager errors
+kubectl logs -n cert-manager deployment/cert-manager --tail=200 | \
+  grep -Ei 'cloudflare|challenge|order|error|unauthorized|forbidden'
+
+# 4) Verify Cloudflare token from in-cluster secret (length/prefix only)
+TOKEN=$(kubectl get secret cloudflare-api-token -n cert-manager -o jsonpath='{.data.api-token}' | base64 -d)
+echo "token_length=${#TOKEN}" && echo "token_prefix=${TOKEN:0:5}"
+
+# 5) Verify Cloudflare token validity against API
+curl -sS -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+**Required Cloudflare token permissions**:
+- `Zone:DNS:Edit`
+- `Zone:Zone:Read`
+- Zone resource includes your exact zone (e.g. `adaas-il.com`).
+
+**Clean reset when stale challenges block renewal**:
+
+```bash
+kubectl delete order -n ingress-nginx <order-name>
+kubectl delete challenge -n ingress-nginx --all
+kubectl delete certificaterequest -n ingress-nginx <certificaterequest-name>
+kubectl annotate certificate -n ingress-nginx <certificate-name> \
+  cert-manager.io/renew-reason='clean-acme-reset' --overwrite
+```
+
+Then watch recovery:
+
+```bash
+kubectl get challenges,orders,certificaterequests -n ingress-nginx -w
+kubectl get certificate -A -o wide
+```
+
 ### 502 Bad Gateway after deploy
 
 **Symptom**: NGINX returns 502 for a service that was just deployed.

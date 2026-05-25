@@ -1,0 +1,21 @@
+{{- if and .Values.monitoring .Values.monitoring.dashboard.enabled }}
+---
+# ==============================================================================
+# Platform Ingress & Certificate Dashboard
+# ==============================================================================
+# Auto-discovered by Grafana sidecar in monitoring stack.
+# Covers certificate validity, ingress object health, and ingress endpoint traffic.
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "platform-ingress.fullname" . }}-dashboard-ingress-certificates
+  namespace: {{ .Values.monitoring.dashboard.namespace | default "monitoring" }}
+  labels:
+    {{ .Values.monitoring.dashboard.label | default "grafana_dashboard" }}: {{ .Values.monitoring.dashboard.labelValue | default "1" | quote }}
+    app.kubernetes.io/component: monitoring
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+data:
+  ingress-certificates.json: |-
+{{ .Files.Get "dashboards/ingress-certificates.json" | indent 4 }}
+{{- end }}

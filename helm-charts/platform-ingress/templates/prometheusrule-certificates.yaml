@@ -1,0 +1,93 @@
+{{- if and .Values.monitoring .Values.monitoring.prometheusRule.enabled }}
+---
+# ==============================================================================
+# PrometheusRule - Ingress Certificate & DNS01 Health
+# ==============================================================================
+# Alerts for:
+#   - certificate expiry windows
+#   - certificate readiness failures
+#   - stuck ACME orders/challenges
+#   - ingress endpoints with sustained no traffic
+# ==============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "platform-ingress.fullname" . }}-certificates
+  namespace: {{ .Values.monitoring.prometheusRule.namespace | default "monitoring" }}
+  labels:
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+    {{- with .Values.monitoring.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+  - name: ingress-certificates
+    interval: 1m
+    rules:
+    - alert: CertificateExpiresSoon
+      expr: |
+        (
+          (certmanager_certificate_expiration_timestamp_seconds - time())
+          < ({{ .Values.monitoring.prometheusRule.certExpiryWarningDays | default 14 }} * 24 * 3600)
+        )
+        and
+        (
+          (certmanager_certificate_expiration_timestamp_seconds - time())
+          > ({{ .Values.monitoring.prometheusRule.certExpiryCriticalDays | default 7 }} * 24 * 3600)
+        )
+      for: 10m
+      labels:
+        severity: warning
+        component: tls
+      annotations:
+        summary: "Certificate expires soon: {{ "{{" }} $labels.name {{ "}}" }}"
+        description: "Certificate {{ "{{" }} $labels.name {{ "}}" }} in namespace {{ "{{" }} $labels.exported_namespace {{ "}}" }} expires in less than {{ .Values.monitoring.prometheusRule.certExpiryWarningDays | default 14 }} days."
+
+    - alert: CertificateExpiresCritical
+      expr: |
+        (certmanager_certificate_expiration_timestamp_seconds - time())
+        < ({{ .Values.monitoring.prometheusRule.certExpiryCriticalDays | default 7 }} * 24 * 3600)
+      for: 5m
+      labels:
+        severity: critical
+        component: tls
+      annotations:
+        summary: "Certificate expiry critical: {{ "{{" }} $labels.name {{ "}}" }}"
+        description: "Certificate {{ "{{" }} $labels.name {{ "}}" }} in namespace {{ "{{" }} $labels.exported_namespace {{ "}}" }} expires in less than {{ .Values.monitoring.prometheusRule.certExpiryCriticalDays | default 7 }} days or is already expired."
+
+    - alert: CertificateNotReady
+      expr: |
+        certmanager_certificate_ready_status{condition="False"} == 1
+      for: {{ .Values.monitoring.prometheusRule.certNotReadyDuration | default "15m" }}
+      labels:
+        severity: critical
+        component: tls
+      annotations:
+        summary: "Certificate not ready: {{ "{{" }} $labels.name {{ "}}" }}"
+        description: "Certificate {{ "{{" }} $labels.name {{ "}}" }} in namespace {{ "{{" }} $labels.exported_namespace {{ "}}" }} has stayed not ready for more than {{ .Values.monitoring.prometheusRule.certNotReadyDuration | default "15m" }}."
+
+    - alert: ACMEOrderPendingTooLong
+      expr: |
+        certmanager_order_state{state="pending"} == 1
+      for: {{ .Values.monitoring.prometheusRule.orderPendingDuration | default "30m" }}
+      labels:
+        severity: warning
+        component: dns01
+      annotations:
+        summary: "ACME order pending too long"
+        description: "ACME order {{ "{{" }} $labels.name {{ "}}" }} has remained pending for more than {{ .Values.monitoring.prometheusRule.orderPendingDuration | default "30m" }}. Check DNS01 challenges and Cloudflare API auth."
+
+    - alert: IngressEndpointNoTraffic
+      expr: |
+        sum by (host) (
+          rate(nginx_ingress_controller_requests{host=~"(app|keycloak|grafana|prometheus|argocd)\\..+"}[15m])
+        ) < 0.001
+      for: 30m
+      labels:
+        severity: warning
+        component: ingress
+      annotations:
+        summary: "Ingress endpoint has no traffic"
+        description: "Ingress endpoint {{ "{{" }} $labels.host {{ "}}" }} has near-zero traffic for over 30 minutes."
+{{- end }}
