@@ -30,17 +30,24 @@ spec:
     # DNS01 solver using Cloudflare
     - dns01:
         cloudflare:
+          {{- if eq (.Values.letsEncrypt.cloudflare.authMethod | default "apiToken") "apiKey" }}
           # Cloudflare Global API Key (legacy authentication)
           # Email must match CLOUDFLARE_EMAIL in OCI Vault
-          email: {{ .Values.letsEncrypt.email }}
+          email: {{ .Values.letsEncrypt.cloudflare.email | default .Values.letsEncrypt.email }}
           apiKeySecretRef:
+            name: {{ .Values.letsEncrypt.cloudflare.apiKeySecretRef.name | default "cloudflare-api-token" }}
+            key: {{ .Values.letsEncrypt.cloudflare.apiKeySecretRef.key | default "api-key" }}
+          {{- else }}
+          # Cloudflare API Token authentication (recommended)
+          apiTokenSecretRef:
             name: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token" }}
-            key: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.key | default "api-key" }}
+            key: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.key | default "api-token" }}
+          {{- end }}
           {{- if .Values.letsEncrypt.cloudflare.zoneIdEnabled }}
           # Specify Zone ID to skip zone discovery API calls
           zoneIDSecretRef:
-            name: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token" }}
-            key: zone-id
+            name: {{ .Values.letsEncrypt.cloudflare.zoneIdSecretRef.name | default (.Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token") }}
+            key: {{ .Values.letsEncrypt.cloudflare.zoneIdSecretRef.key | default "zone-id" }}
           {{- end }}
       {{- if .Values.letsEncrypt.cloudflare.selector }}
       selector:

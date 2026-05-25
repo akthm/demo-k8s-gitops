@@ -94,8 +94,13 @@ letsEncrypt:
   server: https://acme-v02.api.letsencrypt.org/directory
   cloudflare:
     enabled: true
+    authMethod: apiToken
     secretKey: "cloudflare"
+    email: akthm.daas@gmail.com
     zoneIdEnabled: true
+    zoneIdSecretRef:
+      name: cloudflare-api-token
+      key: zone-id
     apiTokenSecretRef:
       name: cloudflare-api-token
-      key: api-key
+      key: api-token
