@@ -125,6 +125,15 @@ lokiStack:
                   level:
                   logger:
 
+# ==============================================================================
+# cert-manager ServiceMonitor
+# ==============================================================================
+certManagerServiceMonitor:
+  enabled: false          # Enable when cert-manager is deployed
+  namespace: cert-manager  # Namespace to place the ServiceMonitor in
+  interval: 60s
+  scrapeTimeout: 10s
+
 # External Secrets Operator Monitoring
 externalSecretsOperator:
   namespace: external-secrets  # Namespace where ESO is deployed

@@ -1,0 +1,39 @@
+# ==============================================================================
+# cert-manager ServiceMonitor
+# ==============================================================================
+# Makes Prometheus scrape cert-manager's built-in metrics on port 9402.
+# Metrics available:
+#   certmanager_certificate_expiration_timestamp_seconds
+#   certmanager_certificate_ready_status
+#   certmanager_certificate_renewal_timestamp_seconds
+#   certmanager_controller_sync_call_count (by controller name)
+#   certmanager_acme_* (DNS01/HTTP01 challenge metrics)
+# ==============================================================================
+{{- if .Values.certManagerServiceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cert-manager
+  namespace: {{ .Values.certManagerServiceMonitor.namespace | default "cert-manager" }}
+  labels:
+    app: cert-manager
+    # This label is required for Prometheus serviceMonitorSelector: release=prometheus
+    release: prometheus
+    {{- include "monitoring-stack.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  namespaceSelector:
+    matchNames:
+      - cert-manager
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cert-manager
+      app.kubernetes.io/component: controller
+  endpoints:
+    - port: tcp-prometheus-servicemonitor
+      path: /metrics
+      interval: {{ .Values.certManagerServiceMonitor.interval | default "60s" }}
+      scrapeTimeout: {{ .Values.certManagerServiceMonitor.scrapeTimeout | default "10s" }}
+      honorLabels: true
+{{- end }}
