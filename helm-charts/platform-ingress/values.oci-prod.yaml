@@ -67,18 +67,7 @@ grafana:
   servicePort: 80
   subdomain: grafana
 
-prometheus:
-  enabled: true
-  path: /
-  serviceName: prometheus-kube-prometheus-prometheus
-  serviceNamespace: monitoring
-  servicePort: 9090
-  subdomain: prometheus
-  basicAuth:
-    enabled: true
-    secretName: prometheus-basic-auth
-    username: admin
-    password: ""
+
 
 externalSecrets:
   enabled: true
