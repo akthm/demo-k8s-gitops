@@ -97,10 +97,6 @@ letsEncrypt:
     authMethod: apiToken
     secretKey: "cloudflare"
     email: akthm.daas@gmail.com
-    zoneIdEnabled: true
-    zoneIdSecretRef:
-      name: cloudflare-api-token
-      key: zone-id
     apiTokenSecretRef:
       name: cloudflare-api-token
       key: api-token

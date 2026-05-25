@@ -118,7 +118,3 @@ letsEncrypt:
     apiKeySecretRef:
       name: cloudflare-api-token
       key: api-key
-    zoneIdEnabled: false
-    zoneIdSecretRef:
-      name: cloudflare-api-token
-      key: zone-id

@@ -130,11 +130,6 @@ letsEncrypt:
     # Vault secret key for Cloudflare token
     secretKey: "cloudflare"
     email: akthm.daas@gmail.com
-    # Enable Zone ID reference to skip zone discovery (more reliable)
-    zoneIdEnabled: true
-    zoneIdSecretRef:
-      name: cloudflare-api-token
-      key: zone-id
     # Secret containing Cloudflare Global API Key
     apiTokenSecretRef:
       name: cloudflare-api-token

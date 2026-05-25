@@ -43,12 +43,6 @@ spec:
             name: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token" }}
             key: {{ .Values.letsEncrypt.cloudflare.apiTokenSecretRef.key | default "api-token" }}
           {{- end }}
-          {{- if .Values.letsEncrypt.cloudflare.zoneIdEnabled }}
-          # Specify Zone ID to skip zone discovery API calls
-          zoneIDSecretRef:
-            name: {{ .Values.letsEncrypt.cloudflare.zoneIdSecretRef.name | default (.Values.letsEncrypt.cloudflare.apiTokenSecretRef.name | default "cloudflare-api-token") }}
-            key: {{ .Values.letsEncrypt.cloudflare.zoneIdSecretRef.key | default "zone-id" }}
-          {{- end }}
       {{- if .Values.letsEncrypt.cloudflare.selector }}
       selector:
         {{- toYaml .Values.letsEncrypt.cloudflare.selector | nindent 8 }}
