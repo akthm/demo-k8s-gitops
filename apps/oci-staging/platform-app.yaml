@@ -85,3 +85,11 @@ spec:
       kind: PodDisruptionBudget
       jsonPointers:
         - /status
+    # Argo Rollouts manages spec.paused and injects pod-template-hash
+    # into active/preview service selectors at runtime — ignore those fields
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /status
+        - /spec/paused
+        - /spec/restartAt

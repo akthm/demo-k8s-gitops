@@ -406,3 +406,45 @@ bff:
     enabled: true
     cookieName: "XSRF-TOKEN"
     headerName: "X-CSRF-Token"
+
+# ==============================================================================
+# Blue/Green Deployment (Argo Rollouts)
+# ==============================================================================
+# When enabled, the standard Deployment is replaced by an Argo Rollout resource.
+# Requires the Argo Rollouts controller to be installed in the cluster
+# (see gitops/apps/oci-prod/argo-rollouts.yaml).
+#
+# activeService  → receives live production traffic (blue)
+# previewService → receives the new version first for validation (green)
+# ==============================================================================
+blueGreen:
+  # Set to true in prod/staging overrides. Requires Argo Rollouts controller.
+  enabled: false
+
+  # false = manual promotion (recommended for production)
+  # true  = auto promote after autoPromotionSeconds (use for staging)
+  autoPromotionEnabled: false
+
+  # Seconds to wait before auto-promoting (only used when autoPromotionEnabled=true)
+  # 0 means promote immediately after readiness
+  autoPromotionSeconds: 0
+
+  # Seconds to keep old (blue) pods alive after cutover so in-flight requests can finish
+  scaleDownDelaySeconds: 30
+
+  # Number of replicas to run for the preview (green) environment.
+  # 0 (default) = same as active replica count
+  previewReplicaCount: 0
+
+  # How many old ReplicaSets to keep for rollback history
+  revisionHistoryLimit: 3
+
+  # Optional extra labels injected onto active pods at runtime by Argo Rollouts
+  activeMetadata:
+    labels:
+      slot: blue
+
+  # Optional extra labels injected onto preview pods at runtime by Argo Rollouts
+  previewMetadata:
+    labels:
+      slot: green

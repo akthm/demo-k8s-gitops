@@ -133,3 +133,23 @@ bff:
   runtimeConfig:
     AUTH_MODE: "bff"
     # Frontend uses these endpoints instead of keycloak-js
+
+# ==============================================================================
+# Blue/Green Deployment (Argo Rollouts)
+# ==============================================================================
+# When enabled, the standard Deployment is replaced by an Argo Rollout resource.
+# Requires the Argo Rollouts controller installed via argo-rollouts.yaml.
+# ==============================================================================
+blueGreen:
+  enabled: false
+  autoPromotionEnabled: false
+  autoPromotionSeconds: 0
+  scaleDownDelaySeconds: 30
+  previewReplicaCount: 0
+  revisionHistoryLimit: 3
+  activeMetadata:
+    labels:
+      slot: blue
+  previewMetadata:
+    labels:
+      slot: green

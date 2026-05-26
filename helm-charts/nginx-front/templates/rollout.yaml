@@ -1,21 +1,45 @@
-{{- if not .Values.blueGreen.enabled }}
-apiVersion: apps/v1
-kind: Deployment
+{{- if .Values.blueGreen.enabled }}
+# ==============================================================================
+# Argo Rollout - Blue/Green (replaces Deployment when blueGreen.enabled=true)
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ include "nginx-front.fullname" . }}
   labels:
     {{- include "nginx-front.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: {{ .Values.blueGreen.revisionHistoryLimit | default 3 }}
   selector:
     matchLabels:
       {{- include "nginx-front.selectorLabels" . | nindent 6 }}
-  revisionHistoryLimit: 5
+  # ============================================================
+  # Blue/Green Strategy
+  # ============================================================
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 25%
-      maxSurge: 25%
+    blueGreen:
+      activeService: {{ include "nginx-front.fullname" . }}
+      previewService: {{ include "nginx-front.fullname" . }}-preview
+      autoPromotionEnabled: {{ .Values.blueGreen.autoPromotionEnabled }}
+      {{- if .Values.blueGreen.autoPromotionSeconds }}
+      autoPromotionSeconds: {{ .Values.blueGreen.autoPromotionSeconds }}
+      {{- end }}
+      scaleDownDelaySeconds: {{ .Values.blueGreen.scaleDownDelaySeconds | default 30 }}
+      {{- if .Values.blueGreen.previewReplicaCount }}
+      previewReplicaCount: {{ .Values.blueGreen.previewReplicaCount }}
+      {{- end }}
+      {{- with .Values.blueGreen.activeMetadata }}
+      activeMetadata:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.blueGreen.previewMetadata }}
+      previewMetadata:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  # ============================================================
+  # Pod Template (identical to Deployment spec)
+  # ============================================================
   template:
     metadata:
       labels:
@@ -48,7 +72,6 @@ spec:
             - name: nginx-conf
               mountPath: /etc/nginx/conf.d
               readOnly: true
-          # Keep default entrypoint/CMD from nginx image: nginx -g 'daemon off;'
           readinessProbe:
             httpGet:
               path: /

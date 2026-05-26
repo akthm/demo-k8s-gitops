@@ -391,6 +391,29 @@ backend:
         - ALL
     readOnlyRootFilesystem: false
 
+  # ============================================================================
+  # Blue/Green Deployment (Argo Rollouts)
+  # ============================================================================
+  # Production: manual promotion required.
+  # Promote with: kubectl argo rollouts promote <rollout-name> -n platform
+  # Monitor UI:   kubectl argo rollouts dashboard (or ArgoCD UI)
+  # ============================================================================
+  blueGreen:
+    enabled: true
+    # Manual promotion in prod — engineer verifies preview before cutover
+    autoPromotionEnabled: false
+    # Keep old pods alive 60s after promotion to drain in-flight requests
+    scaleDownDelaySeconds: 60
+    # Run 1 preview replica (saves cost; scale up manually if load testing)
+    previewReplicaCount: 1
+    revisionHistoryLimit: 3
+    activeMetadata:
+      labels:
+        slot: blue
+    previewMetadata:
+      labels:
+        slot: green
+
 # ==============================================================================
 # Frontend (Nginx) Configuration
 # ==============================================================================
@@ -398,6 +421,19 @@ frontend:
   enabled: true
   
   replicaCount: 3
+
+  blueGreen:
+    enabled: true
+    autoPromotionEnabled: false
+    scaleDownDelaySeconds: 60
+    previewReplicaCount: 1
+    revisionHistoryLimit: 3
+    activeMetadata:
+      labels:
+        slot: blue
+    previewMetadata:
+      labels:
+        slot: green
   
   image:
     repository: "docker.io/akthm/demo-front"

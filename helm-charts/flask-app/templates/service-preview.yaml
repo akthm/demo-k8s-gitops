@@ -1,0 +1,25 @@
+{{- if .Values.blueGreen.enabled }}
+# ==============================================================================
+# Preview Service - receives the new (green) version before promotion
+# ==============================================================================
+# Argo Rollouts injects `rollouts-pod-template-hash: <new-hash>` into this
+# service's selector at deploy time, directing preview traffic to the green pods.
+# The active service (service.yaml) continues to serve blue pods until promotion.
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "flask-app.fullname" . }}-preview
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+    app.kubernetes.io/role: preview
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "flask-app.selectorLabels" . | nindent 4 }}
+{{- end }}

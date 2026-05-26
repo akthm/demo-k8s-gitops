@@ -1,6 +1,15 @@
-{{- if not .Values.blueGreen.enabled }}
-apiVersion: apps/v1
-kind: Deployment
+{{- if .Values.blueGreen.enabled }}
+# ==============================================================================
+# Argo Rollout - Blue/Green Deployment (replaces Deployment when enabled)
+# ==============================================================================
+# activeService  → live traffic (production)
+# previewService → new version is deployed here first for validation
+# Promotion is controlled by .Values.blueGreen.autoPromotionEnabled
+#   - false (prod)  → manual `kubectl argo rollouts promote <name>`
+#   - true  (staging) → auto promote after autoPromotionSeconds
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ include "flask-app.fullname" . }}
   labels:
@@ -9,14 +18,45 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+  revisionHistoryLimit: {{ .Values.blueGreen.revisionHistoryLimit | default 3 }}
   selector:
     matchLabels:
       {{- include "flask-app.selectorLabels" . | nindent 6 }}
+  # ============================================================
+  # Blue/Green Strategy
+  # ============================================================
+  strategy:
+    blueGreen:
+      # Active service receives production traffic
+      activeService: {{ include "flask-app.fullname" . }}
+      # Preview service receives the new (green) version first
+      previewService: {{ include "flask-app.fullname" . }}-preview
+      # Auto-promote:
+      #   false = manual promotion required (recommended for prod)
+      #   true  = auto promote after autoPromotionSeconds (staging)
+      autoPromotionEnabled: {{ .Values.blueGreen.autoPromotionEnabled }}
+      {{- if .Values.blueGreen.autoPromotionSeconds }}
+      autoPromotionSeconds: {{ .Values.blueGreen.autoPromotionSeconds }}
+      {{- end }}
+      # Scale-down delay: keep old (blue) pods running for N seconds after
+      # promotion so they can finish in-flight requests
+      scaleDownDelaySeconds: {{ .Values.blueGreen.scaleDownDelaySeconds | default 30 }}
+      {{- if .Values.blueGreen.previewReplicaCount }}
+      previewReplicaCount: {{ .Values.blueGreen.previewReplicaCount }}
+      {{- end }}
+      # Labels injected into active pods (adds 'slot: blue' or 'slot: green')
+      {{- with .Values.blueGreen.activeMetadata }}
+      activeMetadata:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Labels injected into preview pods
+      {{- with .Values.blueGreen.previewMetadata }}
+      previewMetadata:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  # ============================================================
+  # Pod Template (identical to Deployment spec)
+  # ============================================================
   template:
     metadata:
       annotations:
@@ -29,7 +69,6 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- if .Values.rotation.reloader.enabled }}
-        # Stakater Reloader annotations for automatic pod restart on secret changes
         {{- if .Values.rotation.reloader.autoRestart }}
         reloader.stakater.com/auto: "true"
         {{- else }}
@@ -53,9 +92,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if .Values.database.wallet.enabled }}
-      # Wallet Download and Extraction InitContainers
       initContainers:
-        # Download wallet from OCI Object Storage using instance principal
         - name: download-wallet
           image: ghcr.io/oracle/oci-cli:latest
           command:
@@ -64,15 +101,11 @@ spec:
             - |
               set -e
               echo "Downloading ATP wallet from Object Storage..."
-              # Configure OCI CLI for instance principal auth
               export OCI_CLI_AUTH=instance_principal
-              # Read bucket info from secret
               BUCKET_NAME=$(cat /bucket-info/bucket_name)
               NAMESPACE=$(cat /bucket-info/namespace)
               OBJECT_NAME=$(cat /bucket-info/object_name)
               REGION=$(cat /bucket-info/region)
-              
-              # Download wallet.zip
               oci os object get \
                 --namespace "$NAMESPACE" \
                 --bucket-name "$BUCKET_NAME" \
@@ -80,7 +113,6 @@ spec:
                 --file /wallet-download/wallet.zip \
                 --region "$REGION" \
                 --auth instance_principal
-              
               echo "Wallet downloaded successfully"
               ls -lh /wallet-download/
           volumeMounts:
@@ -97,8 +129,6 @@ spec:
             capabilities:
               drop:
                 - ALL
-        
-        # Extract wallet.zip to /wallet directory and decrypt PEM for thin mode
         - name: extract-wallet
           image: busybox:1.36
           command:
@@ -124,8 +154,6 @@ spec:
             capabilities:
               drop:
                 - ALL
-        
-        # Decrypt ewallet.pem with OpenSSL
         - name: decrypt-wallet
           image: docker.io/alpine/openssl:latest
           command:
@@ -135,26 +163,13 @@ spec:
               set -e
               echo "Decrypting ewallet.pem with password..."
               WALLET_PASSWORD=$(cat /wallet-password/WALLET_PASSWORD)
-              
-              # Decrypt the private key portion
               openssl pkcs8 -inform PEM -in /wallet/ewallet.pem -passin pass:"${WALLET_PASSWORD}" -out /wallet/ewallet_decrypted_key.pem
-              
-              # Extract certificates (not encrypted)
               grep -A 100 "BEGIN CERTIFICATE" /wallet/ewallet.pem > /wallet/ewallet_certs.pem || true
-              
-              # Combine decrypted key and certificates
               cat /wallet/ewallet_decrypted_key.pem /wallet/ewallet_certs.pem > /wallet/ewallet_combined.pem
-              
-              # Replace original with combined version
               mv /wallet/ewallet_combined.pem /wallet/ewallet.pem
-              
-              # Clean up temporary files
               rm -f /wallet/ewallet_decrypted_key.pem /wallet/ewallet_certs.pem
-              
-              echo "Setting file permissions..."
               chmod 640 /wallet/*
               chmod g+r /wallet/*
-              
               echo "Wallet decryption complete"
               wc -c /wallet/ewallet.pem
           volumeMounts:
@@ -187,7 +202,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "flask-app.fullname" . }}-config
-          {{- if .Values.secretNames.databaseCredentials  }}
+          {{- if .Values.secretNames.databaseCredentials }}
             - secretRef:
                 name: {{ .Values.secretNames.databaseCredentials }}
           {{- end }}
@@ -198,7 +213,7 @@ spec:
           {{- if .Values.secretNames.adminCredentials }}
             - secretRef:
                 name: {{ .Values.secretNames.adminCredentials }}
-          {{- end }}  
+          {{- end }}
           env:
               {{- if .Values.jwt.enabled }}
             - name: JWT_ALGORITHM
@@ -219,7 +234,6 @@ spec:
                   key: {{ .Values.jwt.publicKeyKey }}
               {{- end }}
               {{- if .Values.oidc.enabled }}
-            # OIDC/Keycloak Configuration
             - name: OIDC_ENABLED
               value: "true"
             - name: OIDC_ISSUER
@@ -244,9 +258,6 @@ spec:
               value: {{ .Values.oidc.groupsClaim | quote }}
               {{- end }}
               {{- if .Values.bff.enabled }}
-            # ================================================================
-            # BFF (Backend-for-Frontend) Authentication Mode
-            # ================================================================
             - name: AUTH_MODE
               value: "bff"
             - name: BFF_INTERNAL_SECRET
@@ -280,19 +291,12 @@ spec:
               value: {{ .Values.bff.csrf.headerName | quote }}
               {{- end }}
             {{- if .Values.database.wallet.enabled }}
-            # ================================================================
-            # Oracle ATP Configuration (wallet-based authentication)
-            # ================================================================
-            # TNS_ADMIN points to extracted wallet directory
             - name: TNS_ADMIN
               value: {{ .Values.database.wallet.mountPath | default "/opt/oracle/wallet" | quote }}
-            # Oracle Wallet Directory (required by python-oracledb)
             - name: ORACLE_WALLET_DIR
               value: {{ .Values.database.wallet.mountPath | default "/opt/oracle/wallet" | quote }}
-            # Oracle DSN (TNS alias from tnsnames.ora)
             - name: ORACLE_DSN
               value: {{ .Values.database.wallet.tnsAlias | quote }}
-            # Oracle credentials from secret
             - name: ORACLE_USER
               valueFrom:
                 secretKeyRef:
@@ -303,13 +307,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secretNames.databaseCredentials }}
                   key: DB_PASSWORD
-            # Wallet password for PEM decryption (python-oracledb thin mode)
             - name: ORACLE_WALLET_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "flask-app.fullname" . }}-wallet-password
                   key: WALLET_PASSWORD
-            # Optional: Oracle connection pool settings
             {{- if .Values.database.wallet.poolMin }}
             - name: ORACLE_POOL_MIN
               value: {{ .Values.database.wallet.poolMin | quote }}
@@ -340,12 +342,10 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- if .Values.database.wallet.enabled }}
-          # Mount extracted wallet directory
           - name: wallet-dir
             mountPath: {{ .Values.database.wallet.mountPath | default "/opt/oracle/wallet" }}
             readOnly: true
           {{- end }}
-          # Mount database encryption keys as directory
           - name: db-encryption-keys
             mountPath: /run/secrets/db_encryption_keys
             readOnly: true
@@ -354,24 +354,19 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if .Values.database.wallet.enabled }}
-      # Bucket info from ExternalSecret
       - name: wallet-bucket-info
         secret:
           secretName: {{ include "flask-app.fullname" . }}-wallet-bucket-info
           defaultMode: 0400
-      # Wallet password from ExternalSecret (for PEM decryption)
       - name: wallet-password
         secret:
           secretName: {{ include "flask-app.fullname" . }}-wallet-password
           defaultMode: 0400
-      # EmptyDir for downloaded wallet.zip
       - name: wallet-download
         emptyDir: {}
-      # EmptyDir for extracted wallet
       - name: wallet-dir
         emptyDir: {}
       {{- end }}
-      # Encryption keys volume (mounted separately for rotation monitoring)
       - name: db-encryption-keys
         projected:
           defaultMode: 0400
@@ -385,7 +380,6 @@ spec:
                 path: {{ . }}.key
               {{- end }}
               {{- else }}
-              # Default to v1 if keyVersions not specified
               - key: db_encryption_v1.key
                 path: v1.key
               {{- end }}

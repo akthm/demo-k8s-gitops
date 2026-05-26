@@ -28,7 +28,6 @@ global:
   
   # Keycloak SSO Configuration
   keycloak:
-    # UPDATE: Set your actual domain
     url: "https://keycloak.adaas-il.com"
     realm: "master"
     adminUrl: "https://keycloak.adaas-il.com"
@@ -87,7 +86,6 @@ oauth2Proxy:
   # OCI Keycloak OIDC configuration
   config:
     provider: "oidc"
-    # UPDATE: Set your actual domain
     oidcIssuerUrl: "https://keycloak.adaas-il.com/realms/master"
     clientId: "platform-bff"
     scope: "openid profile email groups"
@@ -472,12 +470,47 @@ backend:
         - ALL
     readOnlyRootFilesystem: false
 
+  # ============================================================================
+  # Blue/Green Deployment (Argo Rollouts)
+  # ============================================================================
+  # Staging: auto-promote after 120 s if preview pods are healthy.
+  # This validates the green replica set without blocking CI/CD.
+  # ============================================================================
+  blueGreen:
+    enabled: true
+    # Auto promote after 120 s — gives time to inspect preview before cutover
+    autoPromotionEnabled: true
+    autoPromotionSeconds: 120
+    scaleDownDelaySeconds: 30
+    previewReplicaCount: 1
+    revisionHistoryLimit: 3
+    activeMetadata:
+      labels:
+        slot: blue
+    previewMetadata:
+      labels:
+        slot: green
+
 # ==============================================================================
 # Frontend (Nginx) Configuration
 # ==============================================================================
 frontend:
   enabled: true
-  
+
+  blueGreen:
+    enabled: true
+    autoPromotionEnabled: true
+    autoPromotionSeconds: 120
+    scaleDownDelaySeconds: 30
+    previewReplicaCount: 1
+    revisionHistoryLimit: 3
+    activeMetadata:
+      labels:
+        slot: blue
+    previewMetadata:
+      labels:
+        slot: green
+
   replicaCount: 2
   
   image:
@@ -507,7 +540,6 @@ frontend:
     enabled: true
     runtimeConfig:
       authMode: "bff"
-      # UPDATE: Set your actual domain
       apiBaseUrl: "https://app.adaas-il.com/api"
       csrfEnabled: true
       csrfCookieName: "XSRF-TOKEN"
@@ -545,7 +577,6 @@ ingress:
     - X-Auth-Request-Preferred-Username
     - X-Auth-Request-Groups
     - X-Auth-Request-Access-Token
-  # UPDATE: Set your actual domain
   hosts:
     - host: "app.adaas-il.com"
       paths:

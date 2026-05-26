@@ -1,0 +1,58 @@
+# ==============================================================================
+# Argo Rollouts Controller - OCI Production
+# ==============================================================================
+# Installs the Argo Rollouts controller and CRDs that power blue/green and
+# canary progressive delivery for the platform workloads.
+#
+# Sync Wave: 0  (before platform-app which is wave 2)
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: platform
+    environment: oci-production
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    targetRevision: "2.38.x"
+    helm:
+      releaseName: argo-rollouts
+      values: |
+        controller:
+          replicas: 2
+        dashboard:
+          enabled: true
+          service:
+            type: ClusterIP
+        # RBAC required to manage Rollout resources in all namespaces
+        clusterInstall: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

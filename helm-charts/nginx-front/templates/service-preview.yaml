@@ -1,0 +1,21 @@
+{{- if .Values.blueGreen.enabled }}
+# ==============================================================================
+# Preview Service - receives the new (green) version before promotion
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nginx-front.fullname" . }}-preview
+  labels:
+    {{- include "nginx-front.labels" . | nindent 4 }}
+    app.kubernetes.io/role: preview
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "nginx-front.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort | default 8080 }}
+      protocol: TCP
+{{- end }}
