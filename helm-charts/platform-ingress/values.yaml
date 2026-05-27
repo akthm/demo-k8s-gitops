@@ -72,6 +72,22 @@ grafana:
   servicePort: 80
   annotations: {}
 
+# Prometheus (with basic auth)
+prometheus:
+  enabled: true
+  subdomain: prometheus
+  serviceName: prometheus-kube-prometheus-prometheus
+  serviceNamespace: monitoring
+  servicePort: 9090
+  basicAuth:
+    enabled: true
+    secretName: prometheus-basic-auth
+    username: admin
+    password: ""
+  annotations:
+    nginx.ingress.kubernetes.io/auth-type: "basic"
+    nginx.ingress.kubernetes.io/auth-secret: "prometheus-basic-auth"
+    nginx.ingress.kubernetes.io/auth-realm: "Prometheus - Authentication Required"
 
 # ==============================================================================
 # External Secrets Configuration

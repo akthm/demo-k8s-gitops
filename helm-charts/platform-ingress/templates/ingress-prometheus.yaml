@@ -1,0 +1,49 @@
+# ==============================================================================
+# Platform Ingress - Prometheus (Subdomain Strategy with Basic Auth)
+# ==============================================================================
+# Routes: https://prometheus.{domain}/
+# Ingress created in monitoring namespace to reference local service
+# ==============================================================================
+{{- if .Values.prometheus.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "platform-ingress.fullname" . }}-prometheus
+  namespace: {{ .Values.prometheus.serviceNamespace }}
+  labels:
+    {{- include "platform-ingress.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.prometheus.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.prometheus.basicAuth.enabled }}
+    # Basic auth annotations
+    nginx.ingress.kubernetes.io/auth-type: "basic"
+    nginx.ingress.kubernetes.io/auth-secret: "{{ .Values.prometheus.basicAuth.secretName }}"
+    nginx.ingress.kubernetes.io/auth-realm: "Prometheus - Authentication Required"
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.prometheus.subdomain }}.{{ .Values.domain }}
+      secretName: {{ .Values.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.prometheus.subdomain }}.{{ .Values.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.prometheus.serviceName }}
+                port:
+                  number: {{ .Values.prometheus.servicePort }}
+{{- end }}
