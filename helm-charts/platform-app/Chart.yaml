@@ -42,6 +42,6 @@ dependencies:
   # Redis for oauth2-proxy session storage
   - name: redis
     version: "20.6.0"
-    repository: "https://charts.bitnami.com/bitnami"
+    repository: "file://charts/redis"
     alias: redis
     condition: global.bff.redis.enabled

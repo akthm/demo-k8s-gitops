@@ -6,7 +6,7 @@ dependencies:
   repository: file://../nginx-front
   version: 0.1.0
 - name: redis
-  repository: https://charts.bitnami.com/bitnami
+  repository: file://charts/redis
   version: 20.6.0
-digest: sha256:82e29b5c6f3d9b77171b3b0c5cfec77f56db8a019694ebd52924d211a835efa8
-generated: "2026-02-07T19:52:03.726266372Z"
+digest: sha256:30f4f7a0f84acdbd07ef5b863e25f9bab2827cb422c9cfa7827c6db04d9cf004
+generated: "2026-05-27T20:16:02.784164134Z"

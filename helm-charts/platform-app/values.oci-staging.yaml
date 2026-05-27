@@ -249,6 +249,15 @@ backend:
   
   replicaCount: 1
   
+  InnerRbac:
+    enabled: true
+    # Group mapping file for Keycloak groups to app roles
+    groupMapping:
+      - sso: "role:admins"
+        app: "admin"
+      - sso: "role:platform-developers"
+        app: "admin"
+  
   # Backend image configuration
   image:
     repository: "akthm/demo-back"

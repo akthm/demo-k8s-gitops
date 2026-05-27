@@ -345,6 +345,12 @@ spec:
             mountPath: {{ .Values.database.wallet.mountPath | default "/opt/oracle/wallet" }}
             readOnly: true
           {{- end }}
+          {{- if .Values.InnerRbac.enabled }}
+          # Mount RBAC group mapping YAML
+          - name: flask-rbac
+            mountPath: /run/secrets/flask_rbac
+            readOnly: true
+          {{- end }}
           # Mount database encryption keys as directory
           - name: db-encryption-keys
             mountPath: /run/secrets/db_encryption_keys
@@ -370,6 +376,18 @@ spec:
       # EmptyDir for extracted wallet
       - name: wallet-dir
         emptyDir: {}
+      {{- end }}
+      {{- if .Values.InnerRbac.enabled }}
+      # custom mapping for flask rbac control
+      - name: flask-rbac
+        projected:
+          defaultMode: 0400
+          sources:
+          - configMap:
+              name: {{ include "flask-app.fullname" . }}-rbac-group-mapping
+              items:
+              - key: group_mapping.yaml
+                path: /etc/config/rbac/group_mapping.yaml
       {{- end }}
       # Encryption keys volume (mounted separately for rotation monitoring)
       - name: db-encryption-keys

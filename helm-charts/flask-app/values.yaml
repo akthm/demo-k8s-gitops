@@ -147,6 +147,20 @@ db:
     default_authentication_plugin=mysql_native_password
     character-set-server=utf8mb4
     collation-server=utf8mb4_unicode_ci
+
+InnerRbac:
+  enabled: false
+  # When enabled, creates a RoleBinding that grants the service account "edit" permissions
+  # within the namespace. This allows the app to read/write Kubernetes resources if needed.
+  # Use with caution and follow least privilege principles in production.
+  groupMapping:
+      # Realm roles (from Keycloak)
+      - sso: "role:admin"
+        appRole: "admin"
+      - sso: "role:platform-developers"
+        appRole: "admin"
+
+
 # ==============================================================================
 # Oracle ATP Database Wallet Configuration
 # ==============================================================================

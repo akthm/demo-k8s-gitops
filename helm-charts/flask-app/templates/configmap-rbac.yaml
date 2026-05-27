@@ -1,0 +1,15 @@
+{{- if .Values.InnerRbac.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "flask-app.fullname" . }}-rbac-group-mapping
+  labels:
+    {{- include "flask-app.labels" . | nindent 4 }}
+data:
+  group_mapping.yaml: |
+    mappings:
+    {{- range .Values.InnerRbac.groupMapping }}
+      - sso: {{ .sso | quote }}
+        appRole: {{ .appRole | quote }}
+    {{- end }}
+{{- end }}
