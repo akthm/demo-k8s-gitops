@@ -218,6 +218,13 @@ spec:
                   name: {{ .Values.jwt.existingSecret }}
                   key: {{ .Values.jwt.publicKeyKey }}
               {{- end }}
+              {{- if .Values.InnerRbac.enabled }}
+            - name: RBAC_ENABLED
+              value: "true"
+            - name: RBAC_GROUP_MAPPING_PATH
+              value: /run/secrets/flask_rbac/group_mapping.yaml
+   
+              {{- end }}  
               {{- if .Values.oidc.enabled }}
             # OIDC/Keycloak Configuration
             - name: OIDC_ENABLED
