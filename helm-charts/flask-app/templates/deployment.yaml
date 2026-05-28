@@ -387,7 +387,7 @@ spec:
               name: {{ include "flask-app.fullname" . }}-rbac-group-mapping
               items:
               - key: group_mapping.yaml
-                path: /etc/config/rbac/group_mapping.yaml
+                path: group_mapping.yaml
       {{- end }}
       # Encryption keys volume (mounted separately for rotation monitoring)
       - name: db-encryption-keys
