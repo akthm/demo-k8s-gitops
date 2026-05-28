@@ -221,8 +221,8 @@ spec:
               {{- if .Values.InnerRbac.enabled }}
             - name: RBAC_ENABLED
               value: "true"
-            - name: RBAC_CONFIG_PATH
-              value: /run/secrets/flask_rbac/group_mapping.yaml
+            - name: RBAC_GROUP_MAPPING_PATH
+              value: /run/secrets/flask_rbac
    
               {{- end }}  
               {{- if .Values.oidc.enabled }}
@@ -393,8 +393,8 @@ spec:
           - configMap:
               name: {{ include "flask-app.fullname" . }}-rbac-group-mapping
               items:
-              - key: group_mapping.yaml
-                path: group_mapping.yaml
+              - key: group_mappings.yaml
+                path: group_mappings.yaml
       {{- end }}
       # Encryption keys volume (mounted separately for rotation monitoring)
       - name: db-encryption-keys
