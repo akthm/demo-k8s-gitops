@@ -221,6 +221,8 @@ redis:
     existingSecretPasswordKey: ""
   
   master:
+    updateStrategy:
+      type: OnDelete
     persistence:
       enabled: true
       size: 1Gi
