@@ -221,7 +221,7 @@ spec:
               {{- if .Values.InnerRbac.enabled }}
             - name: RBAC_ENABLED
               value: "true"
-            - name: RBAC_GROUP_MAPPING_PATH
+            - name: RBAC_CONFIG_PATH
               value: /run/secrets/flask_rbac
    
               {{- end }}  
