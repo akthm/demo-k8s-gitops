@@ -14,7 +14,7 @@ image:
   registry: docker.io
   repository: "akthm/demo-back"
   pullPolicy: IfNotPresent
-  tag: "1.2.3" # ArgoCD will override this with your git commit SHA
+  tag: "1.2.4" # ArgoCD will override this with your git commit SHA
 service:
   type: ClusterIP
   port: 5000 # The port the Service exposes
@@ -147,20 +147,17 @@ db:
     default_authentication_plugin=mysql_native_password
     character-set-server=utf8mb4
     collation-server=utf8mb4_unicode_ci
-
 InnerRbac:
   enabled: false
   # When enabled, creates a RoleBinding that grants the service account "edit" permissions
   # within the namespace. This allows the app to read/write Kubernetes resources if needed.
   # Use with caution and follow least privilege principles in production.
   groupMapping:
-      # Realm roles (from Keycloak)
-      - sso: "role:admin"
-        appRole: "admin"
-      - sso: "role:platform-developers"
-        appRole: "admin"
-
-
+    # Realm roles (from Keycloak)
+    - sso: "role:admin"
+      appRole: "admin"
+    - sso: "role:platform-developers"
+      appRole: "admin"
 # ==============================================================================
 # Oracle ATP Database Wallet Configuration
 # ==============================================================================
@@ -420,7 +417,6 @@ bff:
     enabled: true
     cookieName: "XSRF-TOKEN"
     headerName: "X-CSRF-Token"
-
 # ==============================================================================
 # Blue/Green Deployment (Argo Rollouts)
 # ==============================================================================
@@ -434,30 +430,23 @@ bff:
 blueGreen:
   # Set to true in prod/staging overrides. Requires Argo Rollouts controller.
   enabled: false
-
   # false = manual promotion (recommended for production)
   # true  = auto promote after autoPromotionSeconds (use for staging)
   autoPromotionEnabled: false
-
   # Seconds to wait before auto-promoting (only used when autoPromotionEnabled=true)
   # 0 means promote immediately after readiness
   autoPromotionSeconds: 0
-
   # Seconds to keep old (blue) pods alive after cutover so in-flight requests can finish
   scaleDownDelaySeconds: 30
-
   # Number of replicas to run for the preview (green) environment.
   # 0 (default) = same as active replica count
   previewReplicaCount: 0
-
   # How many old ReplicaSets to keep for rollback history
   revisionHistoryLimit: 3
-
   # Optional extra labels injected onto active pods at runtime by Argo Rollouts
   activeMetadata:
     labels:
       slot: blue
-
   # Optional extra labels injected onto preview pods at runtime by Argo Rollouts
   previewMetadata:
     labels:
