@@ -248,7 +248,7 @@ backend:
   enabled: true
   
   replicaCount: 1
-  
+
   InnerRbac:
     enabled: true
     # Group mapping file for Keycloak groups to app roles
@@ -486,7 +486,7 @@ backend:
   # This validates the green replica set without blocking CI/CD.
   # ============================================================================
   blueGreen:
-    enabled: true
+    enabled: false  # disabled for staging - k8s rollout strategy used instead, enable for production with Argo Rollouts
     # Auto promote after 120 s — gives time to inspect preview before cutover
     autoPromotionEnabled: true
     autoPromotionSeconds: 120
