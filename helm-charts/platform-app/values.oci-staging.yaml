@@ -255,9 +255,9 @@ backend:
     enabled: true
     # Group mapping file for Keycloak groups to app roles
     groupMapping:
-      - sso: "role:admins"
+      - sso: "admins"
         appRole: "admin"
-      - sso: "role:platform-developers"
+      - sso: "platform-developers"
         appRole: "admin"
   
   # Backend image configuration
