@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "flask-app.labels" . | nindent 4 }}
 data:
-  group_mappings.yaml: |
+  group-mappings.yaml: |
     mappings:
     {{- range .Values.InnerRbac.groupMapping }}
       - sso: {{ .sso | quote }}
