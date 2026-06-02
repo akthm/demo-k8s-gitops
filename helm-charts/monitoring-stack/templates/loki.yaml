@@ -30,6 +30,8 @@ spec:
 
         singleBinary:
           replicas: {{ .Values.lokiStack.replicas | default 1 }}
+          extraArgs:
+            - -config.expand-env=true
           extraEnvFrom:
             - secretRef:
                 name: {{ .Values.lokiStack.storage.credentials.secretName | default "loki-storage-credentials" }}
