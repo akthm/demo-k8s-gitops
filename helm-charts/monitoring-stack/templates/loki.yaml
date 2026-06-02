@@ -30,6 +30,9 @@ spec:
 
         singleBinary:
           replicas: {{ .Values.lokiStack.replicas | default 1 }}
+          persistence:
+            enabled: false
+            enableStatefulSetAutoDeletePVC: true
 
         read:
           replicas: 0
