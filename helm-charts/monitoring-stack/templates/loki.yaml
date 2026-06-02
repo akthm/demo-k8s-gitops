@@ -33,6 +33,12 @@ spec:
           persistence:
             enabled: false
             enableStatefulSetAutoDeletePVC: true
+          extraVolumes:
+            - name: storage
+              emptyDir: {}
+          extraVolumeMounts:
+            - name: storage
+              mountPath: /var/loki
 
         read:
           replicas: 0
