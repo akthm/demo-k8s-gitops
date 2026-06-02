@@ -11,7 +11,7 @@ All secrets are stored in **OCI Vault** and synced to Kubernetes via the Externa
 | `platform-bff` (OAuth2 cookie) | platform | 90 days | Active sessions invalidated |
 | `keycloak` (admin + DB) | keycloak | On compromise only | Keycloak restart required |
 | `cloudflare` (API key) | ingress-nginx | On compromise only | Cert renewal affected during rotation |
-| `monitoring` (Grafana secrets) | monitoring | On compromise only | Grafana restart required |
+| `monitoring` (Grafana + Loki storage secrets) | monitoring | On compromise only | Grafana/Loki restart required |
 
 ## How It Works
 

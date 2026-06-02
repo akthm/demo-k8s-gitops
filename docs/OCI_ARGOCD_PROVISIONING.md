@@ -585,6 +585,8 @@ Grafana and monitoring secrets:
 | `GRAFANA_ADMIN_PASSWORD` | Grafana admin password |
 | `GRAFANA_OIDC_CLIENT_ID` | Keycloak client ID for Grafana |
 | `GRAFANA_OIDC_SECRET` | Keycloak client secret for Grafana |
+| `LOKI_S3_ACCESS_KEY_ID` | OCI customer access key for S3-compatible Object Storage |
+| `LOKI_S3_SECRET_ACCESS_KEY` | OCI customer secret key for S3-compatible Object Storage |
 
 ---
 

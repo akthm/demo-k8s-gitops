@@ -116,7 +116,8 @@ kubePrometheusStack:
     
     datasources:
       loki:
-        enabled: false  # Enable when Loki is deployed
+        enabled: true
+        url: http://loki.monitoring.svc.cluster.local:3100
 
 # ------------------------------------------------------------------------------
 # External Secrets Operator Monitoring
@@ -143,7 +144,50 @@ externalSecrets:
   appSecretKey: "monitoring"
 
 # ------------------------------------------------------------------------------
-# Loki Stack - Phase 2
+# Loki Stack
 # ------------------------------------------------------------------------------
 lokiStack:
-  enabled: false
+  enabled: true
+  namespace: monitoring
+  releaseName: loki
+  deploymentMode: SingleBinary
+  replicas: 1
+  lokiUrl: http://loki.monitoring.svc.cluster.local:3100
+
+  chart:
+    repoURL: https://grafana.github.io/helm-charts
+    name: loki
+    version: "6.27.0"
+
+  schema:
+    from: "2024-01-01"
+    indexPrefix: loki_index_
+    indexPeriod: 24h
+
+  loki:
+    retention: 168h
+
+  storage:
+    credentials:
+      secretName: loki-storage-credentials
+      refreshInterval: 5m
+      # OCI Vault secret (monitoring) must contain:
+      # - LOKI_S3_ACCESS_KEY_ID
+      # - LOKI_S3_SECRET_ACCESS_KEY
+    s3:
+      endpoint: https://axoq37srkeu5.compat.objectstorage.il-jerusalem-1.oraclecloud.com
+      region: il-jerusalem-1
+      s3ForcePathStyle: true
+      insecure: false
+    buckets:
+      chunks: loki-staging-chunks
+      ruler: loki-staging-ruler
+      admin: loki-staging-admin
+
+  promtail:
+    enabled: true
+    releaseName: promtail
+    chart:
+      repoURL: https://grafana.github.io/helm-charts
+      name: promtail
+      version: "6.16.6"

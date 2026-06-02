@@ -89,16 +89,46 @@ kubePrometheusStack:
 lokiStack:
   enabled: false  # Phase 2 - not implemented yet
   namespace: monitoring
-  version: "2.9.11"
+  releaseName: loki
+  lokiUrl: http://loki.monitoring.svc.cluster.local:3100
+
+  chart:
+    repoURL: https://grafana.github.io/helm-charts
+    name: loki
+    version: "6.27.0"
+
+  deploymentMode: SingleBinary
+  replicas: 1
+
+  schema:
+    from: "2024-01-01"
+    indexPrefix: loki_index_
+    indexPeriod: 24h
   
   loki:
     retention: 168h  # 7 days
-    persistence:
-      enabled: false
-      size: 20Gi
+
+  storage:
+    credentials:
+      secretName: loki-storage-credentials
+      refreshInterval: 5m
+    s3:
+      endpoint: ""
+      region: ""
+      s3ForcePathStyle: true
+      insecure: false
+    buckets:
+      chunks: ""
+      ruler: ""
+      admin: ""
   
   promtail:
     enabled: false
+    releaseName: promtail
+    chart:
+      repoURL: https://grafana.github.io/helm-charts
+      name: promtail
+      version: "6.16.6"
     config:
       # Kubernetes pod discovery for app logs
       snippets:
@@ -124,6 +154,9 @@ lokiStack:
               - labels:
                   level:
                   logger:
+
+  monitoring:
+    serviceMonitorEnabled: true
 
 # ==============================================================================
 # cert-manager ServiceMonitor

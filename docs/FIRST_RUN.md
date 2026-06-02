@@ -94,9 +94,14 @@ python3 -c "import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).dec
 ```json
 {
   "GRAFANA_ADMIN_PASSWORD": "<generate>",
-  "GRAFANA_OIDC_SECRET": "<from-keycloak>"
+  "GRAFANA_OIDC_SECRET": "<from-keycloak>",
+  "LOKI_S3_ACCESS_KEY_ID": "<oci-customer-access-key>",
+  "LOKI_S3_SECRET_ACCESS_KEY": "<oci-customer-secret-key>"
 }
 ```
+
+Loki uses OCI Object Storage through the S3-compatible endpoint. Keep these
+credentials in OCI Vault only; they are synced to Kubernetes by ExternalSecret.
 
 ### `keycloak-wallet-bucket-info` secret
 
@@ -203,6 +208,26 @@ kubectl apply -f apps/oci-staging/monitoring-stack.yaml
 Grafana is available at `https://grafana.<domain>`. Default admin password comes from the `monitoring` vault secret.
 
 Keycloak SSO login appears on the Grafana login page once the `grafana` client is created in Keycloak.
+
+### Loki Activation Checklist (Staging)
+
+Before applying monitoring stack, set these in `helm-charts/monitoring-stack/values.oci-staging.yaml`:
+
+- `lokiStack.storage.s3.endpoint`: `https://<TENANCY_NAMESPACE>.compat.objectstorage.<OCI_REGION>.oraclecloud.com`
+- `lokiStack.storage.s3.region`: OCI region code
+- `lokiStack.storage.buckets.chunks`: staging chunks bucket name
+- `lokiStack.storage.buckets.ruler`: staging ruler bucket name
+- `lokiStack.storage.buckets.admin`: staging admin bucket name
+
+Post-deploy validation:
+
+```bash
+# Loki and Promtail pods should be ready
+kubectl get pods -n monitoring | grep -E 'loki|promtail'
+
+# Loki datasource should exist in Grafana config
+kubectl get configmap -n monitoring prometheus-grafana -o yaml | grep -i loki
+```
 
 ## 6. Deploy Platform App
 

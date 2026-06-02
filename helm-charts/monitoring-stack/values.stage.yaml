@@ -1,0 +1,12 @@
+# ==============================================================================
+# Monitoring Stack - Local Stage Override
+# ==============================================================================
+# Placeholder override file used by the local ArgoCD application.
+# Keep monitoring disabled in local unless explicitly enabled.
+# ==============================================================================
+
+kubePrometheusStack:
+  enabled: false
+
+lokiStack:
+  enabled: false

@@ -1,0 +1,49 @@
+{{- if .Values.lokiStack.enabled }}
+{{- if .Values.lokiStack.promtail.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: promtail
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: {{ .Values.lokiStack.promtail.chart.repoURL | default "https://grafana.github.io/helm-charts" }}
+    chart: {{ .Values.lokiStack.promtail.chart.name | default "promtail" }}
+    targetRevision: {{ .Values.lokiStack.promtail.chart.version | default "6.16.6" | quote }}
+    helm:
+      releaseName: {{ .Values.lokiStack.promtail.releaseName | default "promtail" }}
+      values: |
+        config:
+          clients:
+            - url: {{ printf "%s/loki/api/v1/push" (.Values.lokiStack.lokiUrl | default "http://loki.monitoring.svc.cluster.local:3100") | quote }}
+
+          snippets:
+            scrapeConfigs: |
+{{ .Values.lokiStack.promtail.config.snippets.scrapeConfigs | nindent 14 }}
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.lokiStack.namespace | default "monitoring" }}
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+{{- end }}
+{{- end }}

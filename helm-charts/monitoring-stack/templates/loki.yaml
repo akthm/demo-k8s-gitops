@@ -1,0 +1,119 @@
+{{- if .Values.lokiStack.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: {{ .Values.lokiStack.chart.repoURL | default "https://grafana.github.io/helm-charts" }}
+    chart: {{ .Values.lokiStack.chart.name | default "loki" }}
+    targetRevision: {{ .Values.lokiStack.chart.version | default "6.27.0" | quote }}
+    helm:
+      releaseName: {{ .Values.lokiStack.releaseName | default "loki" }}
+      values: |
+        deploymentMode: {{ .Values.lokiStack.deploymentMode | default "SingleBinary" }}
+
+        global:
+          extraArgs:
+            - -config.expand-env=true
+          extraEnvFrom:
+            - secretRef:
+                name: {{ .Values.lokiStack.storage.credentials.secretName | default "loki-storage-credentials" }}
+
+        singleBinary:
+          replicas: {{ .Values.lokiStack.replicas | default 1 }}
+
+        read:
+          replicas: 0
+
+        write:
+          replicas: 0
+
+        backend:
+          replicas: 0
+
+        loki:
+          auth_enabled: false
+
+          commonConfig:
+            replication_factor: 1
+
+          schemaConfig:
+            configs:
+              - from: {{ .Values.lokiStack.schema.from | default "2024-01-01" | quote }}
+                store: tsdb
+                object_store: s3
+                schema: v13
+                index:
+                  prefix: {{ .Values.lokiStack.schema.indexPrefix | default "loki_index_" | quote }}
+                  period: {{ .Values.lokiStack.schema.indexPeriod | default "24h" | quote }}
+
+          limits_config:
+            retention_period: {{ .Values.lokiStack.loki.retention | default "168h" | quote }}
+
+          storage:
+            type: s3
+            bucketNames:
+              chunks: {{ .Values.lokiStack.storage.buckets.chunks | quote }}
+              ruler: {{ .Values.lokiStack.storage.buckets.ruler | quote }}
+              admin: {{ .Values.lokiStack.storage.buckets.admin | quote }}
+            s3:
+              endpoint: {{ .Values.lokiStack.storage.s3.endpoint | quote }}
+              region: {{ .Values.lokiStack.storage.s3.region | quote }}
+              s3ForcePathStyle: {{ .Values.lokiStack.storage.s3.s3ForcePathStyle | default true }}
+              insecure: {{ .Values.lokiStack.storage.s3.insecure | default false }}
+              accessKeyId: ${LOKI_S3_ACCESS_KEY_ID}
+              secretAccessKey: ${LOKI_S3_SECRET_ACCESS_KEY}
+
+          storage_config:
+            tsdb_shipper:
+              active_index_directory: /var/loki/index
+              cache_location: /var/loki/index_cache
+
+        minio:
+          enabled: false
+
+        test:
+          enabled: false
+
+        monitoring:
+          selfMonitoring:
+            enabled: false
+          serviceMonitor:
+            enabled: {{ .Values.lokiStack.monitoring.serviceMonitorEnabled | default true }}
+
+        gateway:
+          enabled: false
+
+        chunksCache:
+          enabled: false
+
+        resultsCache:
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.lokiStack.namespace | default "monitoring" }}
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+{{- end }}
