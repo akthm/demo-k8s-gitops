@@ -30,6 +30,9 @@ spec:
 
         singleBinary:
           replicas: {{ .Values.lokiStack.replicas | default 1 }}
+          extraEnvFrom:
+            - secretRef:
+                name: {{ .Values.lokiStack.storage.credentials.secretName | default "loki-storage-credentials" }}
           persistence:
             enabled: false
             enableStatefulSetAutoDeletePVC: true
