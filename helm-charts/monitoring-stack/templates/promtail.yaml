@@ -24,10 +24,6 @@ spec:
           clients:
             - url: {{ printf "%s/loki/api/v1/push" (.Values.lokiStack.lokiUrl | default "http://loki.monitoring.svc.cluster.local:3100") | quote }}
 
-          snippets:
-            scrapeConfigs: |
-{{ .Values.lokiStack.promtail.config.snippets.scrapeConfigs | nindent 14 }}
-
   destination:
     server: https://kubernetes.default.svc
     namespace: {{ .Values.lokiStack.namespace | default "monitoring" }}
