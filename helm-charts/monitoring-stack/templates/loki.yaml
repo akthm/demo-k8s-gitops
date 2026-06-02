@@ -99,6 +99,10 @@ spec:
           serviceMonitor:
             enabled: {{ .Values.lokiStack.monitoring.serviceMonitorEnabled | default true }}
 
+        sidecar:
+          rules:
+            enabled: false
+
         gateway:
           enabled: false
 
