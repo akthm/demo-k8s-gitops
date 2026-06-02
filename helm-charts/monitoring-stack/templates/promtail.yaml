@@ -20,6 +20,11 @@ spec:
     helm:
       releaseName: {{ .Values.lokiStack.promtail.releaseName | default "promtail" }}
       values: |
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: http-metrics
+
         config:
           clients:
             - url: {{ printf "%s/loki/api/v1/push" (.Values.lokiStack.lokiUrl | default "http://loki.monitoring.svc.cluster.local:3100") | quote }}
