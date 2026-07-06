@@ -67,7 +67,7 @@ spec:
           refreshInterval: 24h
           secretStoreRef:
             # Use the exact same ClusterSecretStore configured by platform-app.
-            name: dockerhub-credentials
+            name: oci-vault
             kind: ClusterSecretStore
 
 
