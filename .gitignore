@@ -3,3 +3,4 @@
 !README.md
 /ignore
 /.vscode
+apps/oci-staging/ai-incident-triage.yaml

@@ -1,0 +1,50 @@
+# Default values for the AI incident triage service.
+
+replicaCount: 1
+
+image:
+  registry: docker.io
+  repository: akthm/demo-ai-incident-triage
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 8001
+  targetPort: 8001
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+config:
+  PROMETHEUS_URL: "http://prometheus.monitoring.svc.cluster.local:9090"
+  LOKI_URL: ""
+  ENABLE_LLM: "false"
+  LLM_PROVIDER: "none"
+  OPENAI_MODEL: "gpt-4o-mini"
+  OLLAMA_URL: "http://ollama:11434"
+  OLLAMA_MODEL: "llama3.1"
+  DEFAULT_TIME_WINDOW_MINUTES: "15"
+  REQUEST_TIMEOUT_SECONDS: "8"
+  KUBE_DEFAULT_NAMESPACE: "platform"
+
+extraEnv: []
+extraEnvFromSecrets: []
+
+rbac:
+  create: true

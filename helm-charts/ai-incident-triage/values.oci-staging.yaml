@@ -1,0 +1,7 @@
+# OCI staging overrides for AI incident triage
+
+config:
+  LOKI_URL: "http://loki.monitoring.svc.cluster.local:3100"
+  ENABLE_LLM: "false"
+  LLM_PROVIDER: "none"
+  KUBE_DEFAULT_NAMESPACE: "platform"

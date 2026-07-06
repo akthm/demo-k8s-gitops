@@ -44,10 +44,12 @@ spec:
             - name: http
               containerPort: {{ .Values.service.targetPort | default 8080 }}
               protocol: TCP
+          {{- if .Values.nginxConfig.enabled }}
           volumeMounts:
             - name: nginx-conf
               mountPath: /etc/nginx/conf.d
               readOnly: true
+          {{- end }}
           # Keep default entrypoint/CMD from nginx image: nginx -g 'daemon off;'
           readinessProbe:
             httpGet:
@@ -68,6 +70,7 @@ spec:
             failureThreshold: 3
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+      {{- if .Values.nginxConfig.enabled }}
       volumes:
         - name: nginx-conf
           configMap:
@@ -79,4 +82,5 @@ spec:
         {{- toYaml .Values.affinity | nindent 8 }}
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
 {{- end }}

@@ -19,7 +19,8 @@ Cloudflare DNS → Edge Proxy (129.159.146.2) → OKE NodePort → nginx-ingress
 | 0 | `platform-ingress` | NGINX Ingress + Let's Encrypt (Cloudflare DNS01) |
 | 1 | `keycloak` | Keycloak SSO (external Oracle ATP) |
 | 1 | `monitoring-stack` | Prometheus + Grafana |
-| 2 | `platform-app` | Flask Backend + Nginx Frontend + OAuth2-Proxy + Redis |
+| 2 | `ai-incident-triage` | Standalone AI incident triage API |
+| 3 | `platform-app` | Flask Backend + Nginx Frontend + OAuth2-Proxy + Redis |
 
 ## Apply
 

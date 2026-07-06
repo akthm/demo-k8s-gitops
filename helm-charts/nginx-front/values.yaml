@@ -10,6 +10,11 @@ service:
   port: 80  # External port exposed by Service
   targetPort: 8080  # Port nginx listens on inside container
 
+nginxConfig:
+  enabled: true
+
+networkPolicy:
+  enabled: true
 
 ingress:
   enabled: true

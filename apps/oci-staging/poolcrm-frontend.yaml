@@ -1,0 +1,95 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: poolcrm-frontend
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: HEAD
+    path: helm-charts/nginx-front
+    helm:
+      releaseName: poolcrm
+      values: |
+        fullnameOverride: poolcrm-frontend
+
+        image:
+          repository: akthm/poolcrmclient
+          tag: Test-2
+          pullPolicy: IfNotPresent
+
+        replicaCount: 1
+
+        service:
+          type: ClusterIP
+          port: 80
+          targetPort: 8080
+
+        # Use the Nginx config baked into the PoolCRM Docker image.
+        nginxConfig:
+          enabled: false
+
+        # Do not apply the existing BFF-oriented policy.
+        networkPolicy:
+          enabled: false
+
+        backend:
+          enabled: false
+
+        keycloak:
+          enabled: false
+
+        bff:
+          enabled: false
+
+        runtimeConfig:
+          enabled: false
+
+        blueGreen:
+          enabled: false
+
+        ingress:
+          enabled: true
+          className: nginx
+          annotations:
+            nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+            # Add the exact ClusterIssuer annotation already used in this cluster.
+            # cert-manager.io/cluster-issuer: letsencrypt-cloudflare-dns01
+          hosts:
+            - host: poolcrmdemo.adaas-il.com
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - secretName: poolcrm-demo-tls
+              hosts:
+                - poolcrmdemo.adaas-il.com
+
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: poolcrm
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
