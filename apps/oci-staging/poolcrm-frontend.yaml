@@ -53,6 +53,24 @@ spec:
 
         blueGreen:
           enabled: false
+        dockerhub:
+          enabled: true
+          secretName: "dockerhub-pull-secret"
+          externalSecret:
+            secretKey: "dockerhub-credentials"
+
+        imagePullSecrets: 
+          - name: dockerhub-pull-secret
+
+        externalSecrets:
+          enabled: true
+          refreshInterval: 24h
+          secretStoreRef:
+            # Use the exact same ClusterSecretStore configured by platform-app.
+            name: dockerhub-credentials
+            kind: ClusterSecretStore
+
+
 
         ingress:
           enabled: true

@@ -32,6 +32,24 @@ ingress:
   #   - secretName: frontend-tls
   #     hosts:
   #       - frontend.local
+## dockerhub pull secret for private images
+
+
+dockerhub:
+  enabled: false
+  secretName: "dockerhub-pull-secret"
+  externalSecret:
+    secretKey: "dockerhub-credentials"
+
+imagePullSecrets: []
+
+externalSecrets:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    # Use the exact same ClusterSecretStore configured by platform-app.
+    name: YOUR_EXISTING_CLUSTER_SECRET_STORE
+    kind: ClusterSecretStore
 
 backend:
   enabled: true
