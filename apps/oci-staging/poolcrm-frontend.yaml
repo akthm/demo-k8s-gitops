@@ -20,7 +20,7 @@ spec:
         fullnameOverride: poolcrm-frontend
 
         image:
-          repository: akthm/poolcrmclient
+          repository: docker.io/akthm/poolcrmclient
           tag: Test-2
           pullPolicy: IfNotPresent
 
