@@ -21,7 +21,7 @@ spec:
 
         image:
           repository: docker.io/akthm/poolcrmclient
-          tag: Test-2
+          tag: Test-3
           pullPolicy: IfNotPresent
 
         replicaCount: 1
