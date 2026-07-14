@@ -1,0 +1,113 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: landing-frontend
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: HEAD
+    path: helm-charts/nginx-front
+    helm:
+      releaseName: landingpage
+      values: |
+        fullnameOverride: landingpage
+
+        image:
+          repository: docker.io/akthm/landingpage
+          tag: 1.0.0
+          pullPolicy: IfNotPresent
+
+        replicaCount: 1
+
+        service:
+          type: ClusterIP
+          port: 80
+          targetPort: 8080
+
+        # Use the Nginx config baked into the landingpage Docker image.
+        nginxConfig:
+          enabled: false
+
+        # Do not apply the existing BFF-oriented policy.
+        networkPolicy:
+          enabled: false
+
+        backend:
+          enabled: false
+
+        keycloak:
+          enabled: false
+
+        bff:
+          enabled: false
+
+        runtimeConfig:
+          enabled: false
+
+        blueGreen:
+          enabled: false
+        dockerhub:
+          enabled: true
+          secretName: "dockerhub-pull-secret"
+          externalSecret:
+            secretKey: "dockerhub-credentials"
+
+        imagePullSecrets: 
+          - name: dockerhub-pull-secret
+
+        externalSecrets:
+          enabled: true
+          refreshInterval: 24h
+          secretStoreRef:
+            # Use the exact same ClusterSecretStore configured by platform-app.
+            name: oci-vault
+            kind: ClusterSecretStore
+
+
+
+        ingress:
+          enabled: true
+          className: nginx
+          annotations:
+            nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+            # Add the exact ClusterIssuer annotation already used in this cluster.
+            # cert-manager.io/cluster-issuer: letsencrypt-cloudflare-dns01
+          hosts:
+            - host: adaas-il.com
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - secretName: landing-tls
+              hosts:
+                - adaas-il.com
+
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: landingpage
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
