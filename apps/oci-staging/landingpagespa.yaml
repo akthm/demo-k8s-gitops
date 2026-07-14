@@ -21,7 +21,7 @@ spec:
 
         image:
           repository: docker.io/akthm/landingpage
-          tag: 1.0.0
+          tag: Test-2
           pullPolicy: IfNotPresent
 
         replicaCount: 1
