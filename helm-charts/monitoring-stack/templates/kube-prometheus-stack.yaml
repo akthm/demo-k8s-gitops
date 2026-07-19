@@ -96,29 +96,35 @@ spec:
           {{- end }}
           
           # Additional datasources
+          {{- $postgresDatasources := .Values.kubePrometheusStack.grafana.datasources.postgres | default (list) }}
+          {{- $hasLokiDatasource := .Values.kubePrometheusStack.grafana.datasources.loki.enabled }}
           additionalDataSources:
-            {{- if .Values.kubePrometheusStack.grafana.datasources.loki.enabled }}
+            {{- if or $hasLokiDatasource (gt (len $postgresDatasources) 0) }}
+            {{- if $hasLokiDatasource }}
             - name: Loki
               type: loki
               url: {{ .Values.kubePrometheusStack.grafana.datasources.loki.url }}
               access: proxy
               isDefault: false
             {{- end }}
-            {{- range .Values.kubePrometheusStack.grafana.datasources.postgres }}
-            - name: {{ .name }}
-              uid: {{ .uid }}
+            {{- range $postgresDatasources }}
+            - name: {{ .name | quote }}
+              uid: {{ .uid | quote }}
               type: postgres
-              url: {{ .url }}
-              user: {{ .user }}
+              url: {{ .url | quote }}
+              user: {{ .user | quote }}
               access: proxy
               isDefault: {{ .isDefault | default false }}
               jsonData:
-                database: {{ .database }}
-                sslmode: {{ .sslMode | default "disable" }}
+                database: {{ .database | quote }}
+                sslmode: {{ .sslMode | default "disable" | quote }}
                 postgresVersion: {{ .postgresVersion | default 1600 }}
                 timescaledb: false
               secureJsonData:
-                password: {{ .password }}
+                password: {{ .password | quote }}
+            {{- end }}
+            {{- else }}
+            []
             {{- end }}
           
           {{- if .Values.kubePrometheusStack.grafana.resources }}

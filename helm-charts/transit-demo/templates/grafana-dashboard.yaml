@@ -92,7 +92,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT EXTRACT(EPOCH FROM (NOW() - MAX(ingested_at))) AS value FROM fact_arrival_event;",
+              "rawSql": "SELECT EXTRACT(EPOCH FROM (NOW() - MAX(ingested_at::timestamptz))) AS value FROM fact_arrival_event;",
               "refId": "A"
             }
           ],
@@ -230,7 +230,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT COUNT(DISTINCT vehicle_ref) AS value FROM fact_arrival_event WHERE ingested_at > NOW() - INTERVAL '15 minutes';",
+              "rawSql": "SELECT COUNT(DISTINCT vehicle_ref) AS value FROM fact_arrival_event WHERE ingested_at::timestamptz > NOW() - INTERVAL '15 minutes';",
               "refId": "A"
             }
           ],
@@ -332,7 +332,7 @@ data:
               "editorMode": "code",
               "format": "time_series",
               "rawQuery": true,
-              "rawSql": "SELECT $__timeGroupAlias(ingested_at, '1m'), route_short_name AS metric, COUNT(*) AS value FROM fact_arrival_event WHERE $__timeFilter(ingested_at) AND (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) GROUP BY 1,2 ORDER BY 1;",
+              "rawSql": "SELECT $__timeGroupAlias(ingested_at::timestamptz, '1m'), route_short_name AS metric, COUNT(*) AS value FROM fact_arrival_event WHERE $__timeFilter(ingested_at::timestamptz) AND (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) GROUP BY 1,2 ORDER BY 1;",
               "refId": "A"
             }
           ],
@@ -432,7 +432,7 @@ data:
               "editorMode": "code",
               "format": "time_series",
               "rawQuery": true,
-              "rawSql": "SELECT $__timeGroupAlias(ingested_at, '1m'), route_short_name AS metric, ROUND(AVG(delay_seconds)) AS value FROM fact_arrival_event WHERE $__timeFilter(ingested_at) AND (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) GROUP BY 1,2 ORDER BY 1;",
+              "rawSql": "SELECT $__timeGroupAlias(ingested_at::timestamptz, '1m'), route_short_name AS metric, ROUND(AVG(delay_seconds)) AS value FROM fact_arrival_event WHERE $__timeFilter(ingested_at::timestamptz) AND (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) GROUP BY 1,2 ORDER BY 1;",
               "refId": "A"
             }
           ],
@@ -591,7 +591,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT ingested_at, route_short_name, stop_name, vehicle_ref, delay_seconds, scheduled_arrival, predicted_arrival FROM fact_arrival_event WHERE (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) ORDER BY ingested_at DESC LIMIT 20;",
+              "rawSql": "SELECT ingested_at::timestamptz AS ingested_at, route_short_name, stop_name, vehicle_ref, delay_seconds, scheduled_arrival::timestamptz AS scheduled_arrival, predicted_arrival::timestamptz AS predicted_arrival FROM fact_arrival_event WHERE (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) ORDER BY ingested_at::timestamptz DESC LIMIT 20;",
               "refId": "A"
             }
           ],
