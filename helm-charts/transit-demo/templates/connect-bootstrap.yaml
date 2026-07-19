@@ -59,7 +59,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: bootstrap
-          image: curlimages/curl:8.9.1
+          image: docker.io/curlimages/curl:8.9.1
           command: ["sh", "-c"]
           args:
             - |
