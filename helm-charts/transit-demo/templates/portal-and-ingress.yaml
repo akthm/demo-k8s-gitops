@@ -78,7 +78,7 @@ data:
           <article class="card">
             <h2>Prefect</h2>
             <p>Flow runs, schedules, and task logs.</p>
-            <a href="https://{{ .Values.ingress.prefect.host }}" target="_blank" rel="noopener noreferrer">Open Prefect</a>
+            <a href="https://{{ .Values.ingress.prefect.host }}/v2" target="_blank" rel="noopener noreferrer">Open Prefect</a>
           </article>
 
           <article class="card">

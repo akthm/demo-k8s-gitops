@@ -421,20 +421,11 @@ spec:
           imagePullPolicy: {{ .Values.prefect.image.pullPolicy }}
           env:
             - name: POSTGRES_DB
-              valueFrom:
-                secretKeyRef:
-                  name: transit-demo-db
-                  key: POSTGRES_DB
+              value: {{ .Values.postgres.credentials.database | quote }}
             - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: transit-demo-db
-                  key: POSTGRES_USER
+              value: {{ .Values.postgres.credentials.username | quote }}
             - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: transit-demo-db
-                  key: POSTGRES_PASSWORD
+              value: {{ .Values.postgres.credentials.password | quote }}
             - name: PREFECT_UI_API_URL
               value: {{ printf "https://%s/api" .Values.ingress.prefect.host | quote }}
             - name: PREFECT_API_DATABASE_CONNECTION_URL
