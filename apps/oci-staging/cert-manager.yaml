@@ -33,10 +33,10 @@ spec:
         # Resource tuning for OCI Always Free instances
         resources:
           requests:
-            cpu: 50m
+            cpu: 30m
             memory: 64Mi
           limits:
-            cpu: 200m
+            cpu: 120m
             memory: 256Mi
         extraArgs:
           - --dns01-recursive-nameservers-only
@@ -45,18 +45,18 @@ spec:
         webhook:
           resources:
             requests:
-              cpu: 20m
+              cpu: 15m
               memory: 32Mi
             limits:
-              cpu: 100m
+              cpu: 60m
               memory: 64Mi
         cainjector:
           resources:
             requests:
-              cpu: 20m
+              cpu: 15m
               memory: 64Mi
             limits:
-              cpu: 100m
+              cpu: 60m
               memory: 128Mi
   destination:
     server: https://kubernetes.default.svc

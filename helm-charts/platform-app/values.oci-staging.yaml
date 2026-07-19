@@ -73,7 +73,7 @@ global:
 oauth2Proxy:
   enabled: true
   
-  replicaCount: 2
+  replicaCount: 1
   
   image:
     repository: quay.io/oauth2-proxy/oauth2-proxy
@@ -140,10 +140,10 @@ oauth2Proxy:
   # Resources sized for OCI
   resources:
     requests:
-      cpu: 100m
+      cpu: 50m
       memory: 128Mi
     limits:
-      cpu: 300m
+      cpu: 150m
       memory: 256Mi
   
   # Pod distribution for HA
@@ -230,10 +230,10 @@ redis:
     
     resources:
       requests:
-        cpu: 100m
+        cpu: 50m
         memory: 128Mi
       limits:
-        cpu: 250m
+        cpu: 150m
         memory: 256Mi
   
   # Security
@@ -461,10 +461,10 @@ backend:
   # ------------------------------------------------------------------------------
   resources:
     requests:
-      cpu: 200m
+      cpu: 100m
       memory: 384Mi
     limits:
-      cpu: 500m
+      cpu: 300m
       memory: 768Mi
   
   # Pod Security
@@ -523,7 +523,7 @@ frontend:
       labels:
         slot: green
 
-  replicaCount: 2
+  replicaCount: 1
   
   image:
     # Full registry path for OCI
@@ -559,10 +559,10 @@ frontend:
   
   resources:
     requests:
-      cpu: 50m
+      cpu: 30m
       memory: 64Mi
     limits:
-      cpu: 200m
+      cpu: 120m
       memory: 128Mi
 
 # ==============================================================================
@@ -643,8 +643,8 @@ podDisruptionBudget:
 # Horizontal Pod Autoscaler
 # ==============================================================================
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 6
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80

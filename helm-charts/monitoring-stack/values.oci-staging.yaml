@@ -17,10 +17,10 @@ kubePrometheusStack:
   version: "55.5.0"
   
   prometheus:
-    retention: 15d
-    scrapeInterval: 30s
+    retention: 7d
+    scrapeInterval: 60s
     scrapeTimeout: 10s
-    evaluationInterval: 30s
+    evaluationInterval: 60s
     
     storage:
       enabled: false  # Disabled: eliminates 50GB OCI block volume; metrics lost on restart
@@ -29,10 +29,10 @@ kubePrometheusStack:
     
     resources:
       requests:
-        cpu: 200m
+        cpu: 120m
         memory: 512Mi
       limits:
-        cpu: 500m
+        cpu: 300m
         memory: 1Gi
     
     # ServiceMonitor selector - match app ServiceMonitors
@@ -60,10 +60,10 @@ kubePrometheusStack:
     
     resources:
       requests:
-        cpu: 100m
+        cpu: 60m
         memory: 256Mi
       limits:
-        cpu: 300m
+        cpu: 180m
         memory: 512Mi
     
     # Auto-discover dashboards from ConfigMaps
@@ -116,7 +116,7 @@ kubePrometheusStack:
     
     datasources:
       loki:
-        enabled: true
+        enabled: false
         url: http://loki.monitoring.svc.cluster.local:3100
 
 # ------------------------------------------------------------------------------
@@ -147,7 +147,7 @@ externalSecrets:
 # Loki Stack
 # ------------------------------------------------------------------------------
 lokiStack:
-  enabled: true
+  enabled: false
   namespace: monitoring
   releaseName: loki
   deploymentMode: SingleBinary

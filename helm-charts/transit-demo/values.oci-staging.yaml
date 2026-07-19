@@ -13,16 +13,73 @@ connect:
   image:
     repository: docker.io/akthm/etl-connect
     tag: "latest"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
 
 simulator:
   image:
     repository: docker.io/akthm/etl-simulator
     tag: "latest"
+  resources:
+    requests:
+      cpu: 20m
+      memory: 96Mi
+    limits:
+      cpu: 120m
+      memory: 192Mi
 
 prefectRunner:
   image:
     repository: docker.io/akthm/etl-prefect-runner
     tag: "latest"
+  resources:
+    requests:
+      cpu: 40m
+      memory: 192Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+
+postgres:
+  source:
+    resources:
+      requests:
+        cpu: 60m
+        memory: 192Mi
+      limits:
+        cpu: 250m
+        memory: 384Mi
+  mirror:
+    resources:
+      requests:
+        cpu: 80m
+        memory: 320Mi
+      limits:
+        cpu: 400m
+        memory: 768Mi
+
+redpanda:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 320Mi
+    limits:
+      cpu: 300m
+      memory: 768Mi
+
+prefect:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      cpu: 250m
+      memory: 384Mi
 
 lakeConsumer:
   enabled: false
