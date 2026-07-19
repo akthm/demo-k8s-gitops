@@ -51,6 +51,7 @@ postgres:
 
 redpanda:
   enabled: true
+  startMemory: 1G
   image:
     repository: docker.redpanda.com/redpandadata/redpanda
     tag: v24.2.7

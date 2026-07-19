@@ -5,7 +5,7 @@ storage:
   mirror:
     enabled: true
     size: 50Gi
-    storageClassName: oci-bv
+    storageClassName: oci-bv-paravirtualized
 
 # Use pushed images accessible from OKE nodes.
 # Replace repositories/tags with your registry artifacts.
@@ -47,6 +47,9 @@ prefectRunner:
 
 postgres:
   source:
+    image:
+      repository: docker.io/library/postgres
+      tag: "16"
     resources:
       requests:
         cpu: 60m
@@ -55,6 +58,9 @@ postgres:
         cpu: 250m
         memory: 384Mi
   mirror:
+    image:
+      repository: docker.io/library/postgres
+      tag: "16"
     resources:
       requests:
         cpu: 80m
@@ -64,6 +70,7 @@ postgres:
         memory: 768Mi
 
 redpanda:
+  startMemory: 512M
   resources:
     requests:
       cpu: 50m
@@ -73,6 +80,9 @@ redpanda:
       memory: 768Mi
 
 prefect:
+  image:
+    repository: docker.io/prefecthq/prefect
+    tag: "3-python3.12"
   resources:
     requests:
       cpu: 50m
@@ -80,6 +90,21 @@ prefect:
     limits:
       cpu: 250m
       memory: 384Mi
+
+pgweb:
+  source:
+    image:
+      repository: docker.io/sosedoff/pgweb
+      tag: "latest"
+  mirror:
+    image:
+      repository: docker.io/sosedoff/pgweb
+      tag: "latest"
+
+portal:
+  image:
+    repository: docker.io/library/nginx
+    tag: "1.27-alpine"
 
 lakeConsumer:
   enabled: false

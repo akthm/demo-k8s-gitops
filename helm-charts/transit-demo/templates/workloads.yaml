@@ -220,7 +220,7 @@ spec:
             - redpanda
             - start
             - --smp=1
-            - --memory=1G
+            - --memory={{ .Values.redpanda.startMemory | default "1G" }}
             - --overprovisioned
             - --node-id=0
             - --check=false
