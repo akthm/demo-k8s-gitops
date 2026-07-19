@@ -104,6 +104,22 @@ spec:
               access: proxy
               isDefault: false
             {{- end }}
+            {{- range .Values.kubePrometheusStack.grafana.datasources.postgres }}
+            - name: {{ .name }}
+              uid: {{ .uid }}
+              type: postgres
+              url: {{ .url }}
+              user: {{ .user }}
+              access: proxy
+              isDefault: {{ .isDefault | default false }}
+              jsonData:
+                database: {{ .database }}
+                sslmode: {{ .sslMode | default "disable" }}
+                postgresVersion: {{ .postgresVersion | default 1600 }}
+                timescaledb: false
+              secureJsonData:
+                password: {{ .password }}
+            {{- end }}
           
           {{- if .Values.kubePrometheusStack.grafana.resources }}
           resources:

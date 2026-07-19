@@ -118,6 +118,25 @@ kubePrometheusStack:
       loki:
         enabled: false
         url: http://loki.monitoring.svc.cluster.local:3100
+      postgres:
+        - name: Transit Source PostgreSQL
+          uid: transit-source-postgres
+          url: postgres-source.transit-demo.svc.cluster.local:5432
+          database: transit
+          user: transit
+          password: transit
+          sslMode: disable
+          postgresVersion: 1600
+          isDefault: false
+        - name: Transit Mirror PostgreSQL
+          uid: transit-mirror-postgres
+          url: postgres-mirror.transit-demo.svc.cluster.local:5432
+          database: transit
+          user: transit
+          password: transit
+          sslMode: disable
+          postgresVersion: 1600
+          isDefault: false
 
 # ------------------------------------------------------------------------------
 # External Secrets Operator Monitoring

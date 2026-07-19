@@ -84,6 +84,7 @@ kubePrometheusStack:
       loki:
         enabled: false
         url: http://loki.monitoring.svc.cluster.local:3100
+      postgres: []
 
 # Loki Stack (centralized logging)
 lokiStack:

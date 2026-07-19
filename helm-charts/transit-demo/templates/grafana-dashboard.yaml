@@ -613,8 +613,8 @@ data:
           {
             "current": {
               "selected": true,
-              "text": "-- Mixed --",
-              "value": "-- Mixed --"
+              "text": "Transit Source PostgreSQL",
+              "value": "transit-source-postgres"
             },
             "hide": 0,
             "includeAll": false,
@@ -631,8 +631,8 @@ data:
           {
             "current": {
               "selected": true,
-              "text": "-- Mixed --",
-              "value": "-- Mixed --"
+              "text": "Transit Mirror PostgreSQL",
+              "value": "transit-mirror-postgres"
             },
             "hide": 0,
             "includeAll": false,
