@@ -6,6 +6,7 @@ imagePullSecrets: []
 storage:
   mirror:
     enabled: true
+    claimName: postgres-mirror-data
     size: 50Gi
     accessModes:
       - ReadWriteOnce

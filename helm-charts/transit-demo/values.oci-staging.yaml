@@ -4,6 +4,7 @@ global:
 storage:
   mirror:
     enabled: true
+    claimName: postgres-mirror-data-v2
     size: 50Gi
     storageClassName: oci-bv-paravirtualized
 

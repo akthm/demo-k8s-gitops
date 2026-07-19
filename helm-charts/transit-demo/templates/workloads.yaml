@@ -14,7 +14,7 @@ stringData:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: postgres-mirror-data
+  name: {{ .Values.storage.mirror.claimName | default "postgres-mirror-data" }}
   labels:
     {{- include "transit-demo.labels" . | nindent 4 }}
 spec:
@@ -173,7 +173,7 @@ spec:
             name: transit-demo-sql
         - name: mirror-data
           persistentVolumeClaim:
-            claimName: postgres-mirror-data
+            claimName: {{ .Values.storage.mirror.claimName | default "postgres-mirror-data" }}
 ---
 apiVersion: v1
 kind: Service
