@@ -419,6 +419,26 @@ spec:
         - name: prefect
           image: {{ .Values.prefect.image.repository }}:{{ .Values.prefect.image.tag }}
           imagePullPolicy: {{ .Values.prefect.image.pullPolicy }}
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_PASSWORD
+            - name: PREFECT_UI_API_URL
+              value: {{ printf "https://%s/api" .Values.ingress.prefect.host | quote }}
+            - name: PREFECT_API_DATABASE_CONNECTION_URL
+              value: {{ printf "postgresql+asyncpg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@%s:%v/$(POSTGRES_DB)" .Values.prefect.database.host .Values.prefect.database.port | quote }}
           command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
           ports:
             - name: http

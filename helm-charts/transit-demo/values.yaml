@@ -107,6 +107,9 @@ prefect:
     repository: prefecthq/prefect
     tag: 3-python3.12
     pullPolicy: IfNotPresent
+  database:
+    host: postgres-mirror
+    port: 5432
   service:
     port: 4200
   resources:
