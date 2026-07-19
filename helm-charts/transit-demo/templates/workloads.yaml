@@ -140,6 +140,9 @@ spec:
         - name: postgres-mirror
           image: {{ .Values.postgres.mirror.image.repository }}:{{ .Values.postgres.mirror.image.tag }}
           imagePullPolicy: {{ .Values.postgres.mirror.image.pullPolicy }}
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           envFrom:
             - secretRef:
                 name: transit-demo-db
@@ -312,6 +315,8 @@ spec:
               value: "true"
             - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
               value: "true"
+            - name: KAFKA_HEAP_OPTS
+              value: {{ .Values.connect.heapOpts | default "-Xms128M -Xmx512M" | quote }}
           readinessProbe:
             httpGet:
               path: /
@@ -543,6 +548,13 @@ spec:
       labels:
         app.kubernetes.io/component: pgweb-source
     spec:
+      initContainers:
+        - name: wait-for-postgres-source
+          image: docker.io/library/busybox:1.36
+          command:
+            - sh
+            - -c
+            - until nc -z postgres-source 5432; do echo "waiting for postgres-source"; sleep 2; done
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -591,6 +603,13 @@ spec:
       labels:
         app.kubernetes.io/component: pgweb-mirror
     spec:
+      initContainers:
+        - name: wait-for-postgres-mirror
+          image: docker.io/library/busybox:1.36
+          command:
+            - sh
+            - -c
+            - until nc -z postgres-mirror 5432; do echo "waiting for postgres-mirror"; sleep 2; done
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

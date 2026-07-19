@@ -14,13 +14,14 @@ connect:
   image:
     repository: docker.io/akthm/etl-connect
     tag: "latest"
+  heapOpts: "-Xms128M -Xmx384M"
   resources:
     requests:
       cpu: 50m
-      memory: 256Mi
+      memory: 320Mi
     limits:
       cpu: 300m
-      memory: 512Mi
+      memory: 768Mi
 
 simulator:
   image:

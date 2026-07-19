@@ -71,6 +71,7 @@ redpanda:
 
 connect:
   enabled: true
+  heapOpts: "-Xms128M -Xmx512M"
   image:
     repository: etl-connect
     tag: latest
