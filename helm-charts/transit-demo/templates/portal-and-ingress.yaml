@@ -1,0 +1,358 @@
+{{- if .Values.portal.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: transit-demo-portal
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+data:
+  index.html: |
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Transit Demo Portal</title>
+      <style>
+        :root {
+          --bg: #f5f7fa;
+          --card: #ffffff;
+          --ink: #1f2937;
+          --sub: #4b5563;
+          --accent: #0f766e;
+          --accent2: #0ea5e9;
+        }
+        body {
+          margin: 0;
+          font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+          color: var(--ink);
+          background: radial-gradient(circle at 20% 10%, #dbeafe 0%, var(--bg) 35%),
+                      radial-gradient(circle at 90% 90%, #ccfbf1 0%, var(--bg) 45%);
+        }
+        .wrap {
+          max-width: 980px;
+          margin: 32px auto;
+          padding: 20px;
+        }
+        .hero {
+          background: linear-gradient(120deg, var(--accent), var(--accent2));
+          color: #fff;
+          border-radius: 16px;
+          padding: 28px;
+          box-shadow: 0 10px 30px rgba(2, 132, 199, 0.2);
+        }
+        .hero h1 { margin: 0 0 8px; font-size: 32px; }
+        .hero p { margin: 0; opacity: 0.95; }
+        .grid {
+          margin-top: 22px;
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 16px;
+        }
+        .card {
+          background: var(--card);
+          border-radius: 14px;
+          padding: 18px;
+          box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+        .card h2 { margin: 0 0 8px; font-size: 18px; }
+        .card p { margin: 0 0 12px; color: var(--sub); }
+        .card a {
+          text-decoration: none;
+          color: #fff;
+          background: var(--accent);
+          padding: 8px 12px;
+          border-radius: 8px;
+          display: inline-block;
+        }
+      </style>
+    </head>
+    <body>
+      <main class="wrap">
+        <section class="hero">
+          <h1>Transit CDC + ETL Demo</h1>
+          <p>Single entry point for live orchestration, mirror validation, and optional lake view.</p>
+        </section>
+
+        <section class="grid">
+          <article class="card">
+            <h2>Prefect</h2>
+            <p>Flow runs, schedules, and task logs.</p>
+            <a href="https://{{ .Values.ingress.prefect.host }}" target="_blank" rel="noopener noreferrer">Open Prefect</a>
+          </article>
+
+          <article class="card">
+            <h2>pgweb Source</h2>
+            <p>Operational source database view.</p>
+            <a href="https://{{ .Values.ingress.pgwebSource.host }}" target="_blank" rel="noopener noreferrer">Open Source DB</a>
+          </article>
+
+          <article class="card">
+            <h2>pgweb Mirror</h2>
+            <p>CDC mirrored database view.</p>
+            <a href="https://{{ .Values.ingress.pgwebMirror.host }}" target="_blank" rel="noopener noreferrer">Open Mirror DB</a>
+          </article>
+
+          {{- if .Values.minio.enabled }}
+          <article class="card">
+            <h2>MinIO Console</h2>
+            <p>Optional lake storage browser.</p>
+            <a href="https://{{ .Values.ingress.minio.host }}" target="_blank" rel="noopener noreferrer">Open MinIO</a>
+          </article>
+          {{- end }}
+        </section>
+      </main>
+    </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transit-demo-portal
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: portal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: portal
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: nginx
+          image: {{ .Values.portal.image.repository }}:{{ .Values.portal.image.tag }}
+          imagePullPolicy: {{ .Values.portal.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              cat >/etc/nginx/conf.d/default.conf <<'EOF'
+              server {
+                listen 8080;
+                server_name _;
+                root /usr/share/nginx/html;
+                index index.html;
+                location / {
+                  try_files $uri $uri/ /index.html;
+                }
+              }
+              EOF
+              nginx -g 'daemon off;'
+          volumeMounts:
+            - name: portal-html
+              mountPath: /usr/share/nginx/html/index.html
+              subPath: index.html
+      volumes:
+        - name: portal-html
+          configMap:
+            name: transit-demo-portal
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transit-demo-portal
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: portal
+  ports:
+    - name: http
+      port: {{ .Values.portal.service.port }}
+      targetPort: http
+{{- end }}
+---
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: transit-demo-portal
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.ingress.basicAuth.enabled }}
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: {{ .Values.ingress.basicAuth.secretName }}
+    nginx.ingress.kubernetes.io/auth-realm: {{ .Values.ingress.basicAuth.realm | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.portal.host }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.portal.host }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.portal.path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: transit-demo-portal
+                port:
+                  number: {{ .Values.portal.service.port }}
+---
+{{- if .Values.ingress.prefect.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: transit-demo-prefect
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.ingress.basicAuth.enabled }}
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: {{ .Values.ingress.basicAuth.secretName }}
+    nginx.ingress.kubernetes.io/auth-realm: {{ .Values.ingress.basicAuth.realm | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.prefect.host }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.prefect.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prefect
+                port:
+                  number: {{ .Values.prefect.service.port }}
+{{- end }}
+---
+{{- if .Values.ingress.pgwebSource.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: transit-demo-pgweb-source
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.ingress.basicAuth.enabled }}
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: {{ .Values.ingress.basicAuth.secretName }}
+    nginx.ingress.kubernetes.io/auth-realm: {{ .Values.ingress.basicAuth.realm | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.pgwebSource.host }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.pgwebSource.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pgweb-source
+                port:
+                  number: 8081
+{{- end }}
+---
+{{- if .Values.ingress.pgwebMirror.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: transit-demo-pgweb-mirror
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.ingress.basicAuth.enabled }}
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: {{ .Values.ingress.basicAuth.secretName }}
+    nginx.ingress.kubernetes.io/auth-realm: {{ .Values.ingress.basicAuth.realm | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.pgwebMirror.host }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.pgwebMirror.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pgweb-mirror
+                port:
+                  number: 8081
+{{- end }}
+---
+{{- if and .Values.minio.enabled .Values.ingress.minio.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: transit-demo-minio
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.ingress.basicAuth.enabled }}
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: {{ .Values.ingress.basicAuth.secretName }}
+    nginx.ingress.kubernetes.io/auth-realm: {{ .Values.ingress.basicAuth.realm | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.minio.host }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.minio.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minio
+                port:
+                  number: {{ .Values.minio.service.consolePort }}
+{{- end }}
+{{- end }}

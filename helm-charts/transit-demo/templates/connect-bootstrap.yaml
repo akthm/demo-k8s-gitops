@@ -1,0 +1,92 @@
+{{- if .Values.connect.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: connect-bootstrap-payloads
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+data:
+  source-connector.json: |
+    {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "postgres-source",
+      "database.port": "5432",
+      "database.user": "{{ .Values.postgres.credentials.username }}",
+      "database.password": "{{ .Values.postgres.credentials.password }}",
+      "database.dbname": "{{ .Values.postgres.credentials.database }}",
+      "topic.prefix": "transit",
+      "table.include.list": "public.fact_arrival_event",
+      "plugin.name": "pgoutput",
+      "publication.name": "transit_pub",
+      "publication.autocreate.mode": "disabled",
+      "slot.name": "transit_slot",
+      "tombstones.on.delete": "false"
+    }
+
+  sink-connector.json: |
+    {
+      "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+      "tasks.max": "1",
+      "topics": "transit.public.fact_arrival_event",
+      "connection.url": "jdbc:postgresql://postgres-mirror:5432/{{ .Values.postgres.credentials.database }}",
+      "connection.user": "{{ .Values.postgres.credentials.username }}",
+      "connection.password": "{{ .Values.postgres.credentials.password }}",
+      "insert.mode": "upsert",
+      "pk.mode": "record_value",
+      "pk.fields": "event_id",
+      "table.name.format": "fact_arrival_event",
+      "auto.create": "true",
+      "auto.evolve": "true",
+      "delete.enabled": "false",
+      "transforms": "unwrap",
+      "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+      "transforms.unwrap.drop.tombstones": "true"
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: connect-bootstrap
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          image: curlimages/curl:8.9.1
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "Waiting for Kafka Connect API..."
+              until curl -fsS http://connect:8083/ > /dev/null; do
+                sleep 5
+              done
+
+              echo "Upserting source connector..."
+              curl -fsS -X PUT \
+                -H "Content-Type: application/json" \
+                --data @/payloads/source-connector.json \
+                http://connect:8083/connectors/transit-source/config
+
+              echo "Upserting sink connector..."
+              curl -fsS -X PUT \
+                -H "Content-Type: application/json" \
+                --data @/payloads/sink-connector.json \
+                http://connect:8083/connectors/transit-sink/config
+
+              echo "Connector bootstrap completed."
+          volumeMounts:
+            - name: payloads
+              mountPath: /payloads
+      volumes:
+        - name: payloads
+          configMap:
+            name: connect-bootstrap-payloads
+{{- end }}

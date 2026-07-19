@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: transit-demo-smoke-check
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: smoke
+          image: curlimages/curl:8.9.1
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+
+              echo "Checking Prefect health..."
+              until curl -fsS http://prefect:4200/api/health | grep -q "true"; do
+                sleep 5
+              done
+
+              echo "Checking Kafka Connect source connector status..."
+              until curl -fsS http://connect:8083/connectors/transit-source/status | grep -q '"state":"RUNNING"'; do
+                sleep 5
+              done
+
+              echo "Checking Kafka Connect sink connector status..."
+              until curl -fsS http://connect:8083/connectors/transit-sink/status | grep -q '"state":"RUNNING"'; do
+                sleep 5
+              done
+
+              echo "Smoke checks passed."

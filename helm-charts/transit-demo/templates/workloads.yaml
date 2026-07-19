@@ -1,0 +1,725 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: transit-demo-db
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  POSTGRES_DB: {{ .Values.postgres.credentials.database | quote }}
+  POSTGRES_USER: {{ .Values.postgres.credentials.username | quote }}
+  POSTGRES_PASSWORD: {{ .Values.postgres.credentials.password | quote }}
+---
+{{- if .Values.storage.mirror.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-mirror-data
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.storage.mirror.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.mirror.size }}
+  {{- if .Values.storage.mirror.storageClassName }}
+  storageClassName: {{ .Values.storage.mirror.storageClassName }}
+  {{- end }}
+{{- end }}
+---
+{{- if .Values.postgres.source.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-source
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres-source
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: postgres-source
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: postgres-source
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgres-source
+          image: {{ .Values.postgres.source.image.repository }}:{{ .Values.postgres.source.image.tag }}
+          imagePullPolicy: {{ .Values.postgres.source.image.pullPolicy }}
+          args:
+            - postgres
+            - -c
+            - wal_level=logical
+            - -c
+            - max_wal_senders=10
+            - -c
+            - max_replication_slots=10
+          envFrom:
+            - secretRef:
+                name: transit-demo-db
+          ports:
+            - name: postgres
+              containerPort: 5432
+          volumeMounts:
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d/01_source_schema.sql
+              subPath: 01_source_schema.sql
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d/02_gtfs_schema.sql
+              subPath: 02_gtfs_schema.sql
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d/03_dwh_schema.sql
+              subPath: 03_dwh_schema.sql
+            - name: source-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.postgres.source.resources | nindent 12 }}
+      volumes:
+        - name: init-sql
+          configMap:
+            name: transit-demo-sql
+        - name: source-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-source
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: postgres-source
+  ports:
+    - name: postgres
+      port: {{ .Values.postgres.source.service.port }}
+      targetPort: postgres
+{{- end }}
+---
+{{- if .Values.postgres.mirror.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-mirror
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres-mirror
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: postgres-mirror
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: postgres-mirror
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgres-mirror
+          image: {{ .Values.postgres.mirror.image.repository }}:{{ .Values.postgres.mirror.image.tag }}
+          imagePullPolicy: {{ .Values.postgres.mirror.image.pullPolicy }}
+          envFrom:
+            - secretRef:
+                name: transit-demo-db
+          ports:
+            - name: postgres
+              containerPort: 5432
+          volumeMounts:
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d/02_gtfs_schema.sql
+              subPath: 02_gtfs_schema.sql
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d/03_dwh_schema.sql
+              subPath: 03_dwh_schema.sql
+            - name: mirror-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.postgres.mirror.resources | nindent 12 }}
+      volumes:
+        - name: init-sql
+          configMap:
+            name: transit-demo-sql
+        - name: mirror-data
+          persistentVolumeClaim:
+            claimName: postgres-mirror-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-mirror
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: postgres-mirror
+  ports:
+    - name: postgres
+      port: {{ .Values.postgres.mirror.service.port }}
+      targetPort: postgres
+{{- end }}
+---
+{{- if .Values.redpanda.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redpanda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: redpanda
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: redpanda
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: redpanda
+          image: {{ .Values.redpanda.image.repository }}:{{ .Values.redpanda.image.tag }}
+          imagePullPolicy: {{ .Values.redpanda.image.pullPolicy }}
+          args:
+            - redpanda
+            - start
+            - --smp=1
+            - --memory=1G
+            - --overprovisioned
+            - --node-id=0
+            - --check=false
+            - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+            - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+            - --pandaproxy-addr=0.0.0.0:8082
+            - --advertise-pandaproxy-addr=redpanda:8082
+          ports:
+            - name: kafka
+              containerPort: 9092
+            - name: admin
+              containerPort: 9644
+            - name: proxy
+              containerPort: 8082
+          readinessProbe:
+            exec:
+              command: ["rpk", "cluster", "health"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.redpanda.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: redpanda
+  ports:
+    - name: kafka
+      port: {{ .Values.redpanda.service.kafkaPort }}
+      targetPort: kafka
+    - name: admin
+      port: {{ .Values.redpanda.service.adminPort }}
+      targetPort: admin
+    - name: proxy
+      port: {{ .Values.redpanda.service.proxyPort }}
+      targetPort: proxy
+{{- end }}
+---
+{{- if .Values.connect.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: connect
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: connect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: connect
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: connect
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: connect
+          image: {{ .Values.connect.image.repository }}:{{ .Values.connect.image.tag }}
+          imagePullPolicy: {{ .Values.connect.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8083
+          env:
+            - name: BOOTSTRAP_SERVERS
+              value: redpanda:9092
+            - name: GROUP_ID
+              value: transit-connect
+            - name: CONFIG_STORAGE_TOPIC
+              value: transit_connect_configs
+            - name: OFFSET_STORAGE_TOPIC
+              value: transit_connect_offsets
+            - name: STATUS_STORAGE_TOPIC
+              value: transit_connect_status
+            - name: KEY_CONVERTER
+              value: org.apache.kafka.connect.json.JsonConverter
+            - name: VALUE_CONVERTER
+              value: org.apache.kafka.connect.json.JsonConverter
+            - name: CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE
+              value: "true"
+            - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
+              value: "true"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.connect.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: connect
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: connect
+  ports:
+    - name: http
+      port: {{ .Values.connect.service.port }}
+      targetPort: http
+{{- end }}
+---
+{{- if .Values.simulator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simulator
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: simulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: simulator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: simulator
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: simulator
+          image: {{ .Values.simulator.image.repository }}:{{ .Values.simulator.image.tag }}
+          imagePullPolicy: {{ .Values.simulator.image.pullPolicy }}
+          env:
+            - name: DB_HOST
+              value: postgres-source
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_DB
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_PASSWORD
+            - name: POLL_INTERVAL_SECONDS
+              value: {{ .Values.simulator.pollIntervalSeconds | quote }}
+          resources:
+            {{- toYaml .Values.simulator.resources | nindent 12 }}
+{{- end }}
+---
+{{- if .Values.prefect.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefect
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prefect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: prefect
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: prefect
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: prefect
+          image: {{ .Values.prefect.image.repository }}:{{ .Values.prefect.image.tag }}
+          imagePullPolicy: {{ .Values.prefect.image.pullPolicy }}
+          command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
+          ports:
+            - name: http
+              containerPort: 4200
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.prefect.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prefect
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: prefect
+  ports:
+    - name: http
+      port: {{ .Values.prefect.service.port }}
+      targetPort: http
+{{- end }}
+---
+{{- if .Values.prefectRunner.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefect-runner
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prefect-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: prefect-runner
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: prefect-runner
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: prefect-runner
+          image: {{ .Values.prefectRunner.image.repository }}:{{ .Values.prefectRunner.image.tag }}
+          imagePullPolicy: {{ .Values.prefectRunner.image.pullPolicy }}
+          env:
+            - name: PREFECT_API_URL
+              value: http://prefect:4200/api
+            - name: SOURCE_DB_HOST
+              value: postgres-source
+            - name: SOURCE_DB_PORT
+              value: "5432"
+            - name: SOURCE_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_DB
+            - name: SOURCE_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_USER
+            - name: SOURCE_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_PASSWORD
+            - name: MIRROR_DB_HOST
+              value: postgres-mirror
+            - name: MIRROR_DB_PORT
+              value: "5432"
+            - name: MIRROR_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_DB
+            - name: MIRROR_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_USER
+            - name: MIRROR_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: transit-demo-db
+                  key: POSTGRES_PASSWORD
+            - name: GTFS_URL
+              value: {{ .Values.prefectRunner.gtfsUrl | quote }}
+            - name: GTFS_CACHE_PATH
+              value: /data_cache/israel-public-transportation.zip
+            - name: GTFS_CACHE_MAX_AGE_HOURS
+              value: {{ .Values.prefectRunner.gtfsCacheMaxAgeHours | quote }}
+          volumeMounts:
+            - name: cache
+              mountPath: /data_cache
+          resources:
+            {{- toYaml .Values.prefectRunner.resources | nindent 12 }}
+      volumes:
+        - name: cache
+          emptyDir: {}
+{{- end }}
+---
+{{- if .Values.pgweb.source.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgweb-source
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgweb-source
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: pgweb-source
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: pgweb-source
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: pgweb
+          image: {{ .Values.pgweb.source.image.repository }}:{{ .Values.pgweb.source.image.tag }}
+          imagePullPolicy: {{ .Values.pgweb.source.image.pullPolicy }}
+          env:
+            - name: PGWEB_DATABASE_URL
+              value: postgres://{{ .Values.postgres.credentials.username }}:{{ .Values.postgres.credentials.password }}@postgres-source:5432/{{ .Values.postgres.credentials.database }}?sslmode=disable
+          ports:
+            - name: http
+              containerPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgweb-source
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: pgweb-source
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http
+{{- end }}
+---
+{{- if .Values.pgweb.mirror.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgweb-mirror
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgweb-mirror
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: pgweb-mirror
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: pgweb-mirror
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: pgweb
+          image: {{ .Values.pgweb.mirror.image.repository }}:{{ .Values.pgweb.mirror.image.tag }}
+          imagePullPolicy: {{ .Values.pgweb.mirror.image.pullPolicy }}
+          env:
+            - name: PGWEB_DATABASE_URL
+              value: postgres://{{ .Values.postgres.credentials.username }}:{{ .Values.postgres.credentials.password }}@postgres-mirror:5432/{{ .Values.postgres.credentials.database }}?sslmode=disable
+          ports:
+            - name: http
+              containerPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgweb-mirror
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: pgweb-mirror
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http
+{{- end }}
+---
+{{- if .Values.minio.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: minio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: minio
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: minio
+          image: {{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}
+          imagePullPolicy: {{ .Values.minio.image.pullPolicy }}
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              value: {{ .Values.minio.rootUser | quote }}
+            - name: MINIO_ROOT_PASSWORD
+              value: {{ .Values.minio.rootPassword | quote }}
+          ports:
+            - name: api
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          volumeMounts:
+            - name: minio-data
+              mountPath: /data
+      volumes:
+        - name: minio-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: minio
+  ports:
+    - name: api
+      port: {{ .Values.minio.service.apiPort }}
+      targetPort: api
+    - name: console
+      port: {{ .Values.minio.service.consolePort }}
+      targetPort: console
+{{- end }}
+---
+{{- if .Values.lakeConsumer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lake-consumer
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: lake-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: lake-consumer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: lake-consumer
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: lake-consumer
+          image: {{ .Values.lakeConsumer.image.repository }}:{{ .Values.lakeConsumer.image.tag }}
+          imagePullPolicy: {{ .Values.lakeConsumer.image.pullPolicy }}
+          env:
+            - name: BOOTSTRAP_SERVERS
+              value: redpanda:9092
+            - name: TOPIC
+              value: {{ .Values.lakeConsumer.topic | quote }}
+            - name: MINIO_ENDPOINT
+              value: http://minio:9000
+            - name: MINIO_ACCESS_KEY
+              value: {{ .Values.minio.rootUser | quote }}
+            - name: MINIO_SECRET_KEY
+              value: {{ .Values.minio.rootPassword | quote }}
+            - name: MINIO_BUCKET
+              value: {{ .Values.lakeConsumer.bucket | quote }}
+{{- end }}

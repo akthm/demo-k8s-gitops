@@ -1,0 +1,39 @@
+---
+# ==============================================================================
+# ArgoCD Application - Transit Demo (OCI Staging)
+# ==============================================================================
+# Demo profile for CDC + ETL stack on OKE free tier constraints:
+#   - Single 50Gi PVC allocated to postgres-mirror only
+#   - Unified portal entrypoint with links to Prefect/pgweb/optional MinIO
+# ==============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: transit-demo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/akthm/demo-k8s-gitops
+    targetRevision: HEAD
+    path: helm-charts/transit-demo
+    helm:
+      valueFiles:
+        - values.yaml
+        - values.oci-staging.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: transit-demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true

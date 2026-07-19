@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: transit-demo-sql
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+data:
+  01_source_schema.sql: |
+    CREATE TABLE IF NOT EXISTS dim_route (
+        route_id         TEXT PRIMARY KEY,
+        route_short_name TEXT NOT NULL,
+        route_long_name  TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS dim_stop (
+        stop_id       TEXT PRIMARY KEY,
+        stop_name     TEXT NOT NULL,
+        route_id      TEXT NOT NULL REFERENCES dim_route(route_id),
+        stop_sequence INT  NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS fact_arrival_event (
+        event_id          SERIAL PRIMARY KEY,
+        route_id          TEXT NOT NULL REFERENCES dim_route(route_id),
+        route_short_name  TEXT NOT NULL,
+        stop_id           TEXT NOT NULL REFERENCES dim_stop(stop_id),
+        stop_name         TEXT NOT NULL,
+        vehicle_ref       TEXT NOT NULL,
+        scheduled_arrival TIMESTAMPTZ NOT NULL,
+        predicted_arrival TIMESTAMPTZ NOT NULL,
+        delay_seconds     INT NOT NULL,
+        ingested_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (route_id, stop_id, vehicle_ref)
+    );
+
+    CREATE PUBLICATION transit_pub FOR TABLE fact_arrival_event;
+
+    INSERT INTO dim_route (route_id, route_short_name, route_long_name) VALUES
+        ('R68',  '68',  'Har Nof - Har Hotzvim'),
+        ('R505', '505', 'Jerusalem Central Station - Bnei Brak'),
+        ('R91',  '91',  'Gilo - Hebrew University Mount Scopus')
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO dim_stop (stop_id, stop_name, route_id, stop_sequence) VALUES
+        ('S68_1', 'Har Nof Terminal',              'R68', 1),
+        ('S68_2', 'Golda Meir Blvd',               'R68', 2),
+        ('S68_3', 'Kiryat Moshe',                  'R68', 3),
+        ('S68_4', 'Jerusalem Central Bus Station', 'R68', 4),
+        ('S68_5', 'Har Hotzvim Industrial Park',   'R68', 5),
+        ('S505_1', 'Jerusalem Central Bus Station','R505', 1),
+        ('S505_2', 'Givat Shaul Interchange',      'R505', 2),
+        ('S505_3', 'Modiin Junction',              'R505', 3),
+        ('S505_4', 'Bnei Brak Terminal',           'R505', 4),
+        ('S91_1', 'Gilo Terminal',                 'R91', 1),
+        ('S91_2', 'Talpiot',                       'R91', 2),
+        ('S91_3', 'City Center - Jaffa Road',      'R91', 3),
+        ('S91_4', 'Mount Scopus - Hebrew University','R91', 4)
+    ON CONFLICT DO NOTHING;
+
+  02_gtfs_schema.sql: |
+    CREATE SCHEMA IF NOT EXISTS gtfs_dim;
+
+    CREATE TABLE IF NOT EXISTS gtfs_dim.route (
+        route_id          TEXT PRIMARY KEY,
+        route_short_name  TEXT NOT NULL,
+        route_long_name   TEXT,
+        agency_id         TEXT,
+        loaded_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS gtfs_dim.stop (
+        stop_id           TEXT PRIMARY KEY,
+        stop_name         TEXT NOT NULL,
+        stop_lat          DOUBLE PRECISION,
+        stop_lon          DOUBLE PRECISION,
+        loaded_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS gtfs_dim.route_stop (
+        route_id          TEXT NOT NULL REFERENCES gtfs_dim.route(route_id),
+        stop_id           TEXT NOT NULL REFERENCES gtfs_dim.stop(stop_id),
+        stop_sequence     INT NOT NULL,
+        loaded_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (route_id, stop_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gtfs_route_short_name
+        ON gtfs_dim.route(route_short_name);
+
+    CREATE INDEX IF NOT EXISTS idx_gtfs_route_stop_sequence
+        ON gtfs_dim.route_stop(route_id, stop_sequence);
+
+  03_dwh_schema.sql: |
+    CREATE SCHEMA IF NOT EXISTS dwh;
+
+    CREATE TABLE IF NOT EXISTS dwh.mart_route_performance (
+        mart_id             BIGSERIAL PRIMARY KEY,
+        computed_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+        route_short_name    TEXT NOT NULL,
+        observations        INT NOT NULL,
+        avg_delay_seconds   INT NOT NULL,
+        max_delay_seconds   INT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_mart_route_perf_computed_at
+        ON dwh.mart_route_performance(computed_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_mart_route_perf_route
+        ON dwh.mart_route_performance(route_short_name, computed_at DESC);

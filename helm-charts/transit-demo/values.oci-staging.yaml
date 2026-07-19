@@ -1,0 +1,55 @@
+global:
+  namespace: transit-demo
+
+storage:
+  mirror:
+    enabled: true
+    size: 50Gi
+    storageClassName: oci-bv
+
+# Use pushed images accessible from OKE nodes.
+# Replace repositories/tags with your registry artifacts.
+connect:
+  image:
+    repository: docker.io/akthm/etl-connect
+    tag: "0.1.0"
+
+simulator:
+  image:
+    repository: docker.io/akthm/etl-simulator
+    tag: "0.1.0"
+
+prefectRunner:
+  image:
+    repository: docker.io/akthm/etl-prefect-runner
+    tag: "0.1.0"
+
+lakeConsumer:
+  enabled: false
+  image:
+    repository: docker.io/akthm/etl-lake-consumer
+    tag: "0.1.0"
+
+# Keep optional components off for free-tier profile.
+minio:
+  enabled: false
+
+ingress:
+  enabled: true
+  className: nginx
+  basicAuth:
+    enabled: false
+    secretName: transit-demo-basic-auth
+  tls:
+    enabled: true
+    secretName: platform-oci-staging-tls
+  portal:
+    host: transit-demo.adaas-il.com
+  prefect:
+    host: prefect-transit.adaas-il.com
+  pgwebSource:
+    host: pgweb-source-transit.adaas-il.com
+  pgwebMirror:
+    host: pgweb-mirror-transit.adaas-il.com
+  minio:
+    enabled: false

@@ -1,0 +1,211 @@
+global:
+  namespace: transit-demo
+
+imagePullSecrets: []
+
+storage:
+  mirror:
+    enabled: true
+    size: 50Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: oci-bv
+
+postgres:
+  credentials:
+    database: transit
+    username: transit
+    password: transit
+
+  source:
+    enabled: true
+    image:
+      repository: postgres
+      tag: "16"
+      pullPolicy: IfNotPresent
+    service:
+      port: 5432
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  mirror:
+    enabled: true
+    image:
+      repository: postgres
+      tag: "16"
+      pullPolicy: IfNotPresent
+    service:
+      port: 5432
+    resources:
+      requests:
+        cpu: 150m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+redpanda:
+  enabled: true
+  image:
+    repository: docker.redpanda.com/redpandadata/redpanda
+    tag: v24.2.7
+    pullPolicy: IfNotPresent
+  service:
+    kafkaPort: 9092
+    adminPort: 9644
+    proxyPort: 8082
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+connect:
+  enabled: true
+  image:
+    repository: etl-connect
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    port: 8083
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+simulator:
+  enabled: true
+  image:
+    repository: etl-simulator
+    tag: latest
+    pullPolicy: IfNotPresent
+  pollIntervalSeconds: "10"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+prefect:
+  enabled: true
+  image:
+    repository: prefecthq/prefect
+    tag: 3-python3.12
+    pullPolicy: IfNotPresent
+  service:
+    port: 4200
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+prefectRunner:
+  enabled: true
+  image:
+    repository: etl-prefect-runner
+    tag: latest
+    pullPolicy: IfNotPresent
+  gtfsUrl: ftp://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip
+  gtfsCacheMaxAgeHours: "24"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+
+pgweb:
+  source:
+    enabled: true
+    image:
+      repository: sosedoff/pgweb
+      tag: latest
+      pullPolicy: IfNotPresent
+  mirror:
+    enabled: true
+    image:
+      repository: sosedoff/pgweb
+      tag: latest
+      pullPolicy: IfNotPresent
+
+minio:
+  enabled: false
+  image:
+    repository: minio/minio
+    tag: latest
+    pullPolicy: IfNotPresent
+  rootUser: transit
+  rootPassword: transit123
+  service:
+    apiPort: 9000
+    consolePort: 9001
+
+lakeConsumer:
+  enabled: false
+  image:
+    repository: etl-lake-consumer
+    tag: latest
+    pullPolicy: IfNotPresent
+  topic: transit.public.fact_arrival_event
+  bucket: transit-lake
+
+portal:
+  enabled: true
+  image:
+    repository: nginx
+    tag: "1.27-alpine"
+    pullPolicy: IfNotPresent
+  service:
+    port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  basicAuth:
+    enabled: false
+    secretName: transit-demo-basic-auth
+    realm: "Transit Demo"
+    # Plain htpasswd file content, for example:
+    # demo:$apr1$abc123$k8w6l5QfM4R8wXx6v9w2l/
+    htpasswd: ""
+  tls:
+    enabled: true
+    secretName: transit-demo-tls
+
+  portal:
+    host: transit-demo.adaas-il.com
+    path: /
+
+  prefect:
+    enabled: true
+    host: prefect-transit.adaas-il.com
+
+  pgwebSource:
+    enabled: true
+    host: pgweb-source-transit.adaas-il.com
+
+  pgwebMirror:
+    enabled: true
+    host: pgweb-mirror-transit.adaas-il.com
+
+  minio:
+    enabled: false
+    host: minio-transit.adaas-il.com
