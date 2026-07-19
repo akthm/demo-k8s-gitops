@@ -1,0 +1,686 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: transit-demo-bi-dashboard
+  labels:
+    {{- include "transit-demo.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  transit-demo-bi-dashboard.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "$ds_source"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 30
+                  },
+                  {
+                    "color": "red",
+                    "value": 120
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 0
+          },
+          "id": 1,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "value_and_name"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "$ds_source"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT EXTRACT(EPOCH FROM (NOW() - MAX(ingested_at))) AS value FROM fact_arrival_event;",
+              "refId": "A"
+            }
+          ],
+          "title": "Source Freshness Lag",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "$ds_mirror"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 30
+                  },
+                  {
+                    "color": "red",
+                    "value": 120
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 4,
+            "y": 0
+          },
+          "id": 2,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "value_and_name"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "$ds_mirror"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT EXTRACT(EPOCH FROM (NOW() - MAX(ingested_at))) AS value FROM fact_arrival_event;",
+              "refId": "A"
+            }
+          ],
+          "title": "Mirror Freshness Lag",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "$ds_mirror"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 6
+                  },
+                  {
+                    "color": "red",
+                    "value": 12
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 8,
+            "y": 0
+          },
+          "id": 3,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "value_and_name"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "$ds_mirror"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(DISTINCT vehicle_ref) AS value FROM fact_arrival_event WHERE ingested_at > NOW() - INTERVAL '15 minutes';",
+              "refId": "A"
+            }
+          ],
+          "title": "Active Vehicles (15m)",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "$ds_mirror"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "mappings": [],
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 12,
+            "y": 0
+          },
+          "id": 4,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "value_and_name"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "$ds_mirror"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(*) AS value FROM dwh.mart_route_performance WHERE computed_at > NOW() - INTERVAL '24 hours';",
+              "refId": "A"
+            }
+          ],
+          "title": "Mart Rows (24h)",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "$ds_source"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "mappings": [],
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 4
+          },
+          "id": 5,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "$ds_source"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(ingested_at, '1m'), route_short_name AS metric, COUNT(*) AS value FROM fact_arrival_event WHERE $__timeFilter(ingested_at) AND (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) GROUP BY 1,2 ORDER BY 1;",
+              "refId": "A"
+            }
+          ],
+          "title": "Source Events per Minute",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "$ds_mirror"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "mappings": [],
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 4
+          },
+          "id": 6,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "$ds_mirror"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(ingested_at, '1m'), route_short_name AS metric, COUNT(*) AS value FROM fact_arrival_event WHERE $__timeFilter(ingested_at) AND (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) GROUP BY 1,2 ORDER BY 1;",
+              "refId": "A"
+            }
+          ],
+          "title": "Mirror Events per Minute",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "$ds_mirror"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "mappings": [],
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 4
+          },
+          "id": 7,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "$ds_mirror"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(ingested_at, '1m'), route_short_name AS metric, ROUND(AVG(delay_seconds)) AS value FROM fact_arrival_event WHERE $__timeFilter(ingested_at) AND (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) GROUP BY 1,2 ORDER BY 1;",
+              "refId": "A"
+            }
+          ],
+          "title": "Average Delay from Mirror",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "$ds_mirror"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "mappings": [],
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 12
+          },
+          "id": 8,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "$ds_mirror"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(computed_at, '2m'), route_short_name AS metric, avg(avg_delay_seconds) AS value FROM dwh.mart_route_performance WHERE $__timeFilter(computed_at) AND (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) GROUP BY 1,2 ORDER BY 1;",
+              "refId": "A"
+            }
+          ],
+          "title": "Mart Average Delay by Route",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "$ds_mirror"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "mappings": [],
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 12
+          },
+          "id": 9,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "$ds_mirror"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(computed_at, '2m'), route_short_name AS metric, SUM(observations) AS value FROM dwh.mart_route_performance WHERE $__timeFilter(computed_at) AND (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) GROUP BY 1,2 ORDER BY 1;",
+              "refId": "A"
+            }
+          ],
+          "title": "Mart Observation Volume",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "$ds_mirror"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": []
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 20
+          },
+          "id": 10,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "ingested_at"
+              }
+            ]
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "$ds_mirror"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT ingested_at, route_short_name, stop_name, vehicle_ref, delay_seconds, scheduled_arrival, predicted_arrival FROM fact_arrival_event WHERE (${route:sqlstring} = '__all' OR route_short_name = ${route:sqlstring}) ORDER BY ingested_at DESC LIMIT 20;",
+              "refId": "A"
+            }
+          ],
+          "title": "Latest Mirrored Arrival Predictions",
+          "type": "table"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "style": "dark",
+      "tags": [
+        "transit-demo",
+        "cdc",
+        "etl",
+        "bi"
+      ],
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": true,
+              "text": "-- Mixed --",
+              "value": "-- Mixed --"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Source DB",
+            "multi": false,
+            "name": "ds_source",
+            "options": [],
+            "query": "postgres",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
+            "current": {
+              "selected": true,
+              "text": "-- Mixed --",
+              "value": "-- Mixed --"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Mirror DB",
+            "multi": false,
+            "name": "ds_mirror",
+            "options": [],
+            "query": "postgres",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
+            "allValue": "__all",
+            "current": {
+              "selected": true,
+              "text": "All",
+              "value": "__all"
+            },
+            "datasource": {
+              "type": "postgres",
+              "uid": "$ds_mirror"
+            },
+            "definition": "SELECT DISTINCT route_short_name AS __text, route_short_name AS __value FROM fact_arrival_event ORDER BY 1;",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Route",
+            "multi": false,
+            "name": "route",
+            "options": [],
+            "query": "SELECT DISTINCT route_short_name AS __text, route_short_name AS __value FROM fact_arrival_event ORDER BY 1;",
+            "refresh": 2,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Transit Demo BI",
+      "uid": "transit-demo-bi",
+      "version": 1,
+      "weekStart": ""
+    }
